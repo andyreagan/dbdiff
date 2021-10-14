@@ -8,12 +8,12 @@ import pandas as pd
 from jinja2 import Environment, PackageLoader
 
 from dbdiff.main import (check_primary_key, create_diff_table,
-                             create_joined_table, get_all_col_info,
-                             get_column_diffs, get_column_diffs_from_joined,
-                             get_diff_columns, get_diff_rows,
-                             get_diff_rows_from_joined, get_unmatched_rows,
-                             get_unmatched_rows_straight, insert_diff_table,
-                             select_distinct_rows)
+                         create_joined_table, get_all_col_info,
+                         get_column_diffs, get_column_diffs_from_joined,
+                         get_diff_columns, get_diff_rows,
+                         get_diff_rows_from_joined, get_unmatched_rows,
+                         get_unmatched_rows_straight, insert_diff_table,
+                         select_distinct_rows)
 from dbdiff.report import excel_report, html_report
 from dbdiff.vertica import get_cur
 

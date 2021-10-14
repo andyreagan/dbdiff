@@ -7,8 +7,7 @@ import pandas as pd
 from jinja2 import Environment, PackageLoader
 from vertica_python.vertica.cursor import Cursor
 
-from dbdiff.vertica import (get_column_info_lookup,
-                                implicit_dtype_comparison)
+from dbdiff.vertica import get_column_info_lookup, implicit_dtype_comparison
 
 JINJA_ENV = Environment(loader=PackageLoader('dbdiff', 'templates'))
 LOGGER = logging.getLogger(__name__)

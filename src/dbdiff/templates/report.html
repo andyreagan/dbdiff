@@ -1,0 +1,241 @@
+{% extends "base.html" %}
+
+{% block headerextracss %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.15.10/styles/atom-one-light.min.css" integrity="sha256-VCcaD9+X/d4QGYRX7l5aMJ8BWgwfA8d3S7i/HC9rvvw=" crossorigin="anonymous" />
+{% endblock %}
+{% block headertitle %}
+<title>Diff Report</title>
+{% endblock %}
+
+{% block body %}
+<div class="container">
+    <div class="jumbotron" style="margin-top: 30px;">
+        <h1 class="display-4">
+            Diff report between tables <ul>
+                <li>{{ x_table|code }} and</li>
+                <li>{{ y_table|code }}.</li>
+            </ul>
+        </h1>
+        <h2>
+            Joined using columns: {% for col in join_cols %}{{ col|code }}{% if not loop.last %}, {% endif %}{% endfor %}.
+        </h2>
+        <hr class="my-4">
+        <h3>Summary:</h3>
+        <ul>
+            {% for side, info in dedup_info.items() %}
+            {% if info.count > 0 %}
+            <li>There are {{ info.count|comma|code }} rows in {{ side|code }} that were not uniquely identified by the join keys, they will be ignored for cell-by-cell differences, but considered for heirarchical join key analysis.</li>
+            {% endif %}
+            {% endfor %}
+            {% for side, info in missing_join_info.items() %}
+            <li>There are {{ info.count|comma|code }} rows in {{ side|code }} that are not in other table.</li>
+            {% endfor %}
+            {% if diff_summary.count %}
+            <li>There are {{ diff_summary.count|comma|code }} / {{ total_row_count|comma|code }} rows matched between tables that don't line up exactly, and {{ diff_summary.total_count|comma|code }} total cell differences.</li>
+            {% else %}
+            <li>There are {{ total_row_count|comma|code }} rows matched between tables, and {{ diff_summary.total_count|comma|code }} total cell differences.</li>
+            <li>There are {{ diff_summary.total_count|comma|code }} total cell differences.</li>
+            {% endif %}
+            {% if compared_column_count == 1 %}
+            <li>There is {{ 1|comma|code }} / {{ compared_column_count|comma|code }} columns that has a difference.</li>
+            {% else %}
+            <li>There are {{ column_info|length|comma|code }} / {{ compared_column_count|comma|code }} columns that have differences.</li>
+            {% endif %}
+            {% if (column_match_info.uncomparable).sum() > 0 %}
+            <li>There {% if (column_match_info.uncomparable).sum() > 1 %}are{% else %}is{% endif %} {{ (column_match_info.uncomparable).sum()|comma|code }} column{% if (column_match_info.uncomparable).sum() > 1 %}s{% endif %} that matched on name
+                but were not compared based dtype matching:
+                <ul>
+                    {% for i, row in column_match_info.loc[column_match_info.uncomparable].iterrows() %}
+                    <li>Column {{ row.name|code }} has type {{ row.x_dtype|code }} in x and type {{ row.y_dtype|code }} in y.</li>
+                    {% endfor %}
+                </ul>
+            </li>
+            {% endif %}
+            {% if column_match_info.x_dtype.isnull().sum() > 0 %}
+            <li>There {% if column_match_info.x_dtype.isnull().sum() > 1 %}are{% else %}is{% endif %} {{ column_match_info.x_dtype.isnull().sum()|comma|code }} column(s) missing from x:
+                <ul>
+                    {% for i, row in column_match_info.loc[column_match_info.x_dtype.isnull()].iterrows() %}
+                    <li>Column {{ row.name|code }}.</li>
+                    {% endfor %}
+                </ul>
+            </li>
+            {% endif %}
+            {% if column_match_info.y_dtype.isnull().sum() > 0 %}
+            <li>There {% if column_match_info.y_dtype.isnull().sum() > 1 %}are{% else %}is{% endif %} {{ column_match_info.y_dtype.isnull().sum()|comma|code }} column(s) missing from y.
+                <ul>
+                    {% for i, row in column_match_info.loc[column_match_info.y_dtype.isnull()].iterrows() %}
+                    <li>Column {{ row.name|code }}.</li>
+                    {% endfor %}
+                </ul>
+            </li>
+            {% endif %}
+            <li>The maximum number of differences on any individual column is {{ max_differences|comma|code }}.</li>
+            {% if column_match_info.exclude.sum() > 0 %}
+            <li>For reference, this report excluded the following {{ column_match_info.exclude.sum()|comma|code }} column(s):
+                <ul>
+                    {% for i, row in column_match_info.loc[column_match_info.exclude].iterrows() %}
+                    <li>Column {{ row.name|code }}.</li>
+                    {% endfor %}
+                </ul>
+            </li>
+            {% endif %}
+        </ul>
+    </div>
+
+    <div class="row">
+        <div class="col">
+            <h2>
+                (1) Missing rows, (2) mismatched rows, and (3) differences by each column.
+                Click to expand.
+            </h2>
+            <p>Columns are ordered by the number of differences on each column.
+                For the mismatched rows, columns with prefix "x" are from <code class="plaintext">{{ x_schema }}.{{ x_table }}</code> and columns with prefix "y" are from <code class="plaintext">{{ x_schema }}.{{ y_table }}</code>.
+                The same columns labels are in the "grouped differences" output,
+                in which we take all pairs of cells that are different for the given column,
+                and count up the number of such pairs.
+                The code to pull the difference data is printed below it.</p>
+        </div>
+    </div>
+
+    <div class="row" style="margin-bottom: 30px;">
+        <div class="col">
+            <div class="accordion" id="accordionExample">
+                {% for side, info in missing_join_info.items() %}
+                {% if info.count > 0 %}
+                <div class="card">
+                    <div class="card-header" id="headingmissing{{ side }}">
+                        <h2 class="mb-0">
+                            <button class="btn btn-link" type="button" data-toggle="collapse" data-target="#collapsemissing{{ side }}" aria-expanded="true" aria-controls="collapsemissing{{ side }}">
+                                Rows in {{ side|code }} that aren't in the other table.
+                            </button>
+                        </h2>
+                    </div>
+                    <div id="collapsemissing{{ side }}" class="collapse show" aria-labelledby="headingmissing{{ side }}" data-parent="#accordionExample">
+                        <div class="card-body overflow-auto">
+                            {{ info.sample|dfhtml|safe }}
+                            <h3>Query:</h3>
+                            <pre>{{ info.query|code("pgsql") }}</pre>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+                {% endfor %}
+                {% for col, m in hierarchical_join_info.items() %}
+                {% for side, info in m.items() %}
+                {% if info.count > 0 %}
+                <div class="card">
+                    <div class="card-header" id="headingx{{ col }}{{ info.count }}">
+                        <h2 class="mb-0">
+                            <button class="btn btn-link" type="button" data-toggle="collapse" data-target="#collapsex{{ col }}{{ side }}{{ info.count }}" aria-expanded="true" aria-controls="collapsex{{ col }}{{ col }}{{ info.count }}">
+                                Rows in table {{ side|code }} that aren't in the other table for column {{ col|code }} (sample out of {{ info.count|comma }})
+                            </button>
+                        </h2>
+                    </div>
+                    <div id="collapsex{{ col }}{{ side }}{{ info.count }}" class="collapse show" aria-labelledby="headingx{{ col }}{{ side }}{{ info.count }}" data-parent="#accordionExample">
+                        <div class="card-body overflow-auto">
+                            {{ info.sample|dfhtml|safe }}
+                            {% if "sample_grouped" in info %}
+                            <h4>Grouped:</h4>
+                            {{ info.sample_grouped|dfhtml|safe }}
+                            {% endif %}
+                            <h3>Queries:</h3>
+                            <pre>{{ info.query|code("pgsql") }}</pre>
+                            {% if "sample_grouped" in info %}
+                            <pre>{{ info.query_grouped|code("pgsql") }}</pre>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+                {% endfor %}
+                {% endfor %}
+                {% if diff_summary.count %}
+                <div class="card">
+                    <div class="card-header" id="headingThree">
+                        <h2 class="mb-0">
+                            <button class="btn btn-link" type="button" data-toggle="collapse" data-target="#collapseThree" aria-expanded="true" aria-controls="collapseThree">
+                                Sample mismatched rows
+                            </button>
+                        </h2>
+                    </div>
+                    <div id="collapseThree" class="collapse show" aria-labelledby="headingThree" data-parent="#accordionExample">
+                        <div class="card-body overflow-auto">
+                            {{ diff_summary.sample|dfhtml|safe }}
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+                {% for column, info in column_info.items() %}
+                <div class="card">
+                    <div class="card-header" id="heading{{ loop.index }}">
+                        <h2 class="mb-0">
+                            <button class="btn btn-link collapsed" type="button" data-toggle="collapse" data-target="#collapse{{ loop.index }}" aria-expanded="false" aria-controls="collapse{{ loop.index }}">
+                                Column {{ column|code("highlighter-rogue") }} has {{ info.count|comma }} differences.
+                            </button>
+                        </h2>
+                    </div>
+                    <div id="collapse{{ loop.index }}" class="collapse" aria-labelledby="heading{{ loop.index }}" data-parent="#accordionExample">
+                        <div class="card-body overflow-auto">
+                            <h3>Grouped differences, 100 most common:</h3>
+                            <p>
+                                {{ info.df|dfhtml|safe }}
+                            </p>
+                            <h3>Raw differences samples:</h3>
+                            <p>
+                                {{ info.df_raw|dfhtml|safe }}
+                            </p>
+                            {% if info.q_h_x %}
+                            <h3>Raw differences by first join column sample for x:</h3>
+                            <p>
+                                {{ info.df_h_x|dfhtml|safe }}
+                            </p>
+                            <h3>Raw differences by first join column sample for y:</h3>
+                            <p>
+                                {{ info.df_h_y|dfhtml|safe }}
+                            </p>
+                            {% endif %}
+                            {% if info.q_n %}
+                            <h3>Binned differences between values:</h3>
+                            <p>
+                                {{ info.df_n|dfhtml|safe }}
+                            </p>
+                            <h3>Biggest differences between values:</h3>
+                            <p>
+                                {{ info.df_n_sample|dfhtml|safe }}
+                            </p>
+                            {% endif %}
+                            <hr class="my-4">
+                            <h3>Query for grouped differences:</h3>
+                            <pre>{{ info.q|code("pgsql") }}</pre>
+                            <h3>Query for raw differences:</h3>
+                            <pre>{{ info.q_raw|code("pgsql") }}</pre>
+                            {% if info.q_h_x %}
+                            <h3>Query for raw differences by first join column in x:</h3>
+                            <pre>{{ info.q_h_x|code("pgsql") }}</pre>
+                            <h3>Query for raw differences by first join column in y:</h3>
+                            <pre>{{ info.q_h_y|code("pgsql") }}</pre>
+                            {% endif %}
+                            {% if info.q_n %}
+                            <h3>Query for grouped numeric differences:</h3>
+                            <pre>{{ info.q_n|code("pgsql") }}</pre>
+                            <h3>Query for sample biggest numeric differences:</h3>
+                            <pre>{{ info.q_n_sample|code("pgsql") }}</pre>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block bodyextrajs %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.15.10/highlight.min.js" integrity="sha256-1zu+3BnLYV9LdiY85uXMzii3bdrkelyp37e0ZyTAQh0=" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.15.10/languages/pgsql.min.js" integrity="sha256-kS8L87/ytXlzSR5Zcd2qCLLg8j0uVuGcirrE9+Oi7Ns=" crossorigin="anonymous"></script>
+<script>
+    hljs.initHighlightingOnLoad();
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.4/clipboard.min.js"></script>
+{% endblock %}

@@ -1,0 +1,17 @@
+graft src
+graft tests
+
+include AUTHORS.md
+include CHANGELOG.md
+include LICENSE
+include README.md
+
+exclude tox.ini
+exclude mypy.ini
+exclude .coveragerc
+exclude .flake8
+exclude .isort.cfg
+exclude .pre-commit-config.yaml
+prune ci
+
+global-exclude *.py[cod] __pycache__/* *.so *.dylib

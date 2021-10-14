@@ -1,0 +1,56 @@
+---
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v2.4.0
+    hooks:
+      - id: end-of-file-fixer
+        language_version: python3.6
+        stages: [commit, push]
+
+      - id: trailing-whitespace
+        language_version: python3.6
+        args: [--markdown-linebreak-ext=md]
+        stages: [commit, push]
+
+  - repo: https://github.com/timothycrosley/isort
+    rev: 5.4.2
+    hooks:
+      - id: isort
+
+  - repo: https://github.com/python/black
+    rev: 19.10b0
+    hooks:
+      - id: black
+        language_version: python3.6
+        args: [--line-length=120]
+        stages: [commit, push]
+
+  # Lint Python and Pass/Fail
+  # - repo: https://github.com/PyCQA/pydocstyle
+  #   rev: 4.0.1
+  #   hooks:
+  #     - id: pydocstyle
+  #       language_version: python3.6
+  #       stages: [commit, push]
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v2.4.0
+    hooks:
+      - id: check-byte-order-marker
+        language_version: python3.6
+        stages: [commit, push]
+
+  - repo: https://gitlab.com/pycqa/flake8
+    rev: 3.7.9
+    hooks:
+      - id: flake8
+        language_version: python3.6
+        stages: [commit, push]
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v0.740
+    hooks:
+      - id: mypy
+        language_version: python3.6
+        stages: [commit, push]
+...

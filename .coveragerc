@@ -1,0 +1,17 @@
+[paths]
+source =
+   src
+   */site-packages
+
+[run]
+branch = true
+source =
+    dbdiff
+parallel = true
+disable_warnings = no-data-collected
+
+[report]
+show_missing = true
+precision = 2
+omit = *migrations*
+

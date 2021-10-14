@@ -1,7 +1,7 @@
 .coverage
 .tox/
-ci/
 dist/
 *.egg-info
 __pycache__/
 *.pyc
+.mypy_cache

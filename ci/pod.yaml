@@ -1,0 +1,11 @@
+apiVersion: 'v1'
+kind: 'Pod'
+spec:
+  containers:
+    - name: 'default'
+      image: 'python:bullseye'
+      args:
+        - 'cat'
+      tty: true
+    - name: 'vertica'
+      image: 'jbfavre/vertica:9.2.0-7_centos-7'

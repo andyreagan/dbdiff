@@ -111,13 +111,11 @@ def get_cur() -> Cursor:
         ssl_data = resp.content
 
         context = ssl.create_default_context(cadata=ssl_data.decode('ascii', 'ignore'))
-        context.check_hostname = False
         conninfo['ssl'] = context
     else:
         use_ssl_env = os.environ.get('VERTICA_SSL')
         if (use_ssl_env is not None) and ((use_ssl_env == '1') or (use_ssl_env.lower() in {'true', 'yes', 'please'})):
             context = ssl.create_default_context()
-            context.check_hostname = False
             conninfo['ssl'] = context
 
     with vertica_python.connect(**conninfo) as conn:

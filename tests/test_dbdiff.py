@@ -16,7 +16,7 @@ from dbdiff.main import get_unmatched_rows
 from dbdiff.main import get_unmatched_rows_straight
 from dbdiff.main import insert_diff_table
 from dbdiff.main import select_distinct_rows
-from dbdiff.cli import main
+from dbdiff.cli import cli
 from dbdiff.vertica import get_column_info
 from dbdiff.vertica import get_column_info_lookup
 from dbdiff.vertica import get_cur
@@ -37,6 +37,7 @@ JOIN_COLS = pd.DataFrame({'join1': {**VARCHAR_DTYPES, **VALID_COL},
 
 @pytest.fixture(scope='session')
 def cur():
+    # vsql -d docker -u dbadmin
     os.environ['VERTICA_HOST'] = 'localhost'
     os.environ['VERTICA_PORT'] = '5433'
     os.environ['VERTICA_DATABASE'] = 'docker'
@@ -285,8 +286,9 @@ def test_main(cur):
 
     def runner_wrapper(runner, base_options, addl_options):
         result = runner.invoke(
-            main, base_options + addl_options)
-        if result.exit_code:
+            cli, base_options + addl_options)
+        if result.exit_code != 0:
+            print(result.output)
             logging.info(str(result.exception) + str(result.exc_info))
         assert result.exit_code == 0
 
@@ -342,5 +344,6 @@ def test_main(cur):
     # Path('x_table_report.html').rename('case_on.html')
     runner_wrapper(runner, base_options, ['--case-insensitive'])
     # Path('x_table_report.html').rename('case_off.html')
+    runner_wrapper(runner, base_options, ['--save-json-summary'])
 
     Path('x_table_report.html').unlink()

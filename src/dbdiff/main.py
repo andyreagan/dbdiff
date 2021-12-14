@@ -37,7 +37,7 @@ def check_primary_key(cur: Cursor,
     return n_rows - n_distinct_rows
 
 
-def get_all_col_info(cur: Cursor, schema, x_table, y_schema, y_table, exclude_columns_set, save_column_summary, save_column_summary_format):
+def get_all_col_info(cur: Cursor, schema, x_table, y_schema, y_table, exclude_columns_set, save_column_summary, save_column_summary_format) -> pd.DataFrame:
     LOGGER.info('Getting column info for both tables.')
     x_table_info_lookup = get_column_info_lookup(cur, schema, x_table)
     y_table_info_lookup = get_column_info_lookup(cur, y_schema, y_table)
@@ -84,8 +84,9 @@ def select_distinct_rows(cur: Cursor,
     Delete is inefficient, see: https://www.vertica.com/docs/9.2.x/HTML/Content/Authoring/AnalyzingData/Optimizations/PerformanceConsiderationsForDELETEAndUPDATEQueries.htm
     And: https://www.vertica.com/blog/another-way-to-de-duplicate-table-rows-quick-tip/
     '''
-
-    cur.execute(JINJA_ENV.get_template('table_drop.sql').render(schema_name=schema, table_name=(table + '_dedup')))
+    drop_q = JINJA_ENV.get_template('table_drop.sql').render(schema_name=schema, table_name=(table + '_dedup'))
+    LOGGER.info(drop_q)
+    cur.execute(drop_q)
     q = JINJA_ENV.get_template('create_dedup.sql').render(
         schema_name=schema, table_name=table,
         table_name_dedup=(table + '_dedup'),
@@ -95,9 +96,13 @@ def select_distinct_rows(cur: Cursor,
     )
     if use_temp_tables:
         q = JINJA_ENV.get_template('create_temp_table.sql').render(table_name=(table + '_dedup'), query=q)
+    LOGGER.info(q)
     cur.execute(q)
+    LOGGER.info('COMMIT;')
     cur.execute('COMMIT;')
-    cur.execute(JINJA_ENV.get_template('table_drop.sql').render(schema_name=schema, table_name=(table + '_dup')))
+    drop_q = JINJA_ENV.get_template('table_drop.sql').render(schema_name=schema, table_name=(table + '_dup'))
+    LOGGER.info(drop_q)
+    cur.execute(drop_q)
     q = JINJA_ENV.get_template('create_dup.sql').render(
         schema_name=schema, table_name=table,
         table_name_dup=(table + '_dup'),
@@ -107,7 +112,9 @@ def select_distinct_rows(cur: Cursor,
     )
     if use_temp_tables:
         q = JINJA_ENV.get_template('create_temp_table.sql').render(table_name=(table + '_dup'), query=q)
+    LOGGER.info(q)
     cur.execute(q)
+    LOGGER.info('COMMIT;')
     cur.execute('COMMIT;')
 
     return (schema, 'v_temp_schema')[use_temp_tables], '{table}_dedup'.format(table=table)

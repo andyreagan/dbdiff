@@ -60,7 +60,8 @@ def excel_report(x_schema: str, y_schema: str,
                  total_row_count: int,
                  column_info: dict,
                  column_match_info: pd.DataFrame,
-                 missing_join_info: dict, hierarchical_join_info: dict) -> list:
+                 missing_join_info: dict, hierarchical_join_info: dict,
+                 dedup_info: dict) -> list:
     '''
     Return a list with [(sheet_name: str, df: pd.DataFrame) ... ]
     '''

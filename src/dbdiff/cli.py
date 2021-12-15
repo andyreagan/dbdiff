@@ -9,6 +9,7 @@ import pandas as pd
 from jinja2 import Environment, PackageLoader
 from vertica_python.vertica.cursor import Cursor
 
+from dbdiff import __version__
 from dbdiff.main import (check_primary_key, create_diff_table,
                          create_joined_table, get_all_col_info,
                          get_column_diffs, get_column_diffs_from_joined,
@@ -81,6 +82,7 @@ def get_summary_from_all_info(d: dict) -> dict:
 @click.option('--logging-config', type=Path, default=DEFAULT_LOGGING_CONFIG)
 @click.option('--case-insensitive', is_flag=True, help='If using this flag, all case sensitivity is turned off.')
 @click.option('--save-json-summary', is_flag=True, help='Save a .json file of the diff summary.')
+@click.version_option(__version__)
 def cli(schema: str, x_table: str, y_table: str,
         join_cols: str, y_schema: str, output_schema: str, drop_output_tables: bool,
         x_table_query: bool, y_table_query: bool, exclude_columns: str,

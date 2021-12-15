@@ -78,7 +78,7 @@ setup(
     },
     entry_points={
         'console_scripts': [
-            'dbdiff = dbdiff.cli:main',
+            'dbdiff = dbdiff.cli:cli',
         ]
     },
 )

@@ -345,5 +345,6 @@ def test_main(cur):
     runner_wrapper(runner, base_options, ['--case-insensitive'])
     # Path('x_table_report.html').rename('case_off.html')
     runner_wrapper(runner, base_options, ['--save-json-summary'])
+    runner_wrapper(runner, base_options, ['--hierarchical-join', '--save-json-summary'])
 
     Path('x_table_report.html').unlink()

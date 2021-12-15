@@ -5,6 +5,21 @@ MAX_EXCEL_SHEET_NAME_LEN = 31
 JINJA_ENV = Environment(loader=PackageLoader('dbdiff', 'templates'))
 
 
+def get_max_diferences(column_info: pd.DataFrame) -> int:
+    if len(list(column_info.values())) > 0:
+        return list(column_info.values())[0]['count']
+    else:
+        return 0
+
+
+def reformat_missing_join_info(d: dict, x_table: str, y_table: str) -> dict:
+    return {x_table: d['right'], y_table: d['left']}
+
+
+def reformat_hierarchical_join_info(d: dict, x_table: str, y_table: str) -> dict:
+    return {col: reformat_missing_join_info(val, x_table, y_table) for col, val in d.items()}
+
+
 def html_report(x_schema: str, y_schema: str, x_table: str, y_table: str, join_cols: list,
                 diff_summary: dict, total_row_count: int,
                 column_info: dict,
@@ -26,15 +41,11 @@ def html_report(x_schema: str, y_schema: str, x_table: str, y_table: str, join_c
     JINJA_ENV.filters['dfhtml'] = dfhtml
 
     t = JINJA_ENV.get_template('report.html')
-    if len(list(column_info.values())) > 0:
-        max_differences = list(column_info.values())[0]['count']
-    else:
-        max_differences = 0
-    missing_join_info = {x_table: missing_join_info['right'], y_table: missing_join_info['left']}
-    for col in hierarchical_join_info:
-        hierarchical_join_info[col] = {x_table: hierarchical_join_info[col]['right'], y_table: hierarchical_join_info[col]['left']}
-    column_match_info['uncomparable'] = (~column_match_info.comparable) & (~column_match_info.x_dtype.isnull()) & (~column_match_info.y_dtype.isnull())
-    print(column_match_info['uncomparable'])
+
+    max_differences = get_max_diferences(column_info)
+    missing_join_info = reformat_missing_join_info(missing_join_info, x_table, y_table)
+    hierarchical_join_info = reformat_hierarchical_join_info(hierarchical_join_info, x_table, y_table)
+
     return t.render({'x_schema': x_schema, 'y_schema': y_schema,
                      'x_table': x_table, 'y_table': y_table,
                      'join_cols': join_cols,
@@ -60,7 +71,8 @@ def excel_report(x_schema: str, y_schema: str,
                  total_row_count: int,
                  column_info: dict,
                  column_match_info: pd.DataFrame,
-                 missing_join_info: dict, hierarchical_join_info: dict,
+                 missing_join_info: dict,
+                 hierarchical_join_info: dict,
                  dedup_info: dict) -> list:
     '''
     Return a list with [(sheet_name: str, df: pd.DataFrame) ... ]
@@ -83,10 +95,9 @@ def excel_report(x_schema: str, y_schema: str,
     )})
     summary_sheet_data.append({'Summary': "There are {diff_row_count} rows matched between tables that don't line up exactly.".format(diff_row_count=diff_summary['count'])})
     summary_sheet_data.append({'Summary': 'There are {column_info} columns that have differences.'.format(column_info=len(column_info))})
-    if len(list(column_info.values())) > 0:
-        max_differences = list(column_info.values())[0]['count']
-    else:
-        max_differences = 0
+
+    max_differences = get_max_diferences(column_info)
+
     summary_sheet_data.append({'Summary': 'The maximum number of differences on any individual column is {max_differences}.'.format(max_differences=max_differences)})
     all_sheets.append(('Summary', pd.DataFrame(summary_sheet_data)))
 

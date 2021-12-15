@@ -2,6 +2,7 @@ import json
 import logging
 import logging.config
 from pathlib import Path
+from typing import Any
 
 import click
 import pandas as pd
@@ -32,6 +33,13 @@ def initialize_logging(config: Path) -> None:
     logging.config.dictConfig(dict_config)
 
 
+def df_to_dict(x: Any) -> Any:
+    if type(x) == pd.DataFrame:
+        return x.to_dict('records')
+    else:
+        return x
+
+
 def get_summary_from_all_info(d: dict) -> dict:
     return {
         'x_schema': d['x_schema'],
@@ -41,18 +49,13 @@ def get_summary_from_all_info(d: dict) -> dict:
         'join_cols': d['join_cols'],
         'total_row_count': d['total_row_count'],
         'dedup_info': d['dedup_info'],
-        'column_info': {col: {k: info[k] for k in {'count'}} for col, info in d['column_info'].items()},
+        'column_info': {col: {k: df_to_dict(v) for k, v in info.items()} for col, info in d['column_info'].items()},
         # this is a dataframe:
-        # 'column_match_info'
-        # just the counts here:
-        'missing_join_info': {
-            d['x_table']: {x: d['missing_join_info']['left'][x] for x in {'count'}},
-            d['y_table']: {x: d['missing_join_info']['right'][x] for x in {'count'}}
-        },
+        'column_match_info': df_to_dict(d['column_match_info']),
+        'missing_join_info': {side: {k: df_to_dict(v) for k, v in info.items()} for side, info in d['missing_join_info'].items()},
         # just the counts from the diff summary:
         'diff_summary': {x: d['diff_summary'][x] for x in {'count', 'total_count'}},
-        # just the counts from deep in the heir join info:
-        'hierarchical_join_info': {col: {side: {x: side_res[x] for x in {'count'}} for side, side_res in res} for col, res in d['hierarchical_join_info']}
+        'hierarchical_join_info': {col: {side: {k: df_to_dict(v) for k, v in info.items()} for side, info in col_info.items()} for col, col_info in d['hierarchical_join_info'].items()}
     }
 
 
@@ -159,7 +162,7 @@ def cli(schema: str, x_table: str, y_table: str,
         # get the parts of the info that aren't dataframes
         summary_info = get_summary_from_all_info(all_info)
         Path(f'{x_table}_diff_summary.json').write_text(
-            json.dumps(summary_info)
+            json.dumps(summary_info, indent=4, default=str)
         )
 
 
@@ -198,6 +201,7 @@ def main(cur: Cursor,
         save_column_summary_format
     )
     comparable_filter = (~all_col_info_df.exclude & all_col_info_df.comparable & ~all_col_info_df.x_dtype.isnull() & ~all_col_info_df.y_dtype.isnull())
+    all_col_info_df['uncomparable'] = (~all_col_info_df.comparable) & (~all_col_info_df.x_dtype.isnull()) & (~all_col_info_df.y_dtype.isnull())
     # check that the join cols exist on both tables
     for col in join_cols:
         if all_col_info_df.loc[comparable_filter & (all_col_info_df.index == col), :].shape[0] == 0:

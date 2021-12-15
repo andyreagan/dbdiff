@@ -38,6 +38,11 @@ JOIN_COLS = pd.DataFrame({'join1': {**VARCHAR_DTYPES, **VALID_COL},
 @pytest.fixture(scope='session')
 def cur():
     # vsql -d docker -u dbadmin
+    # export VERTICA_HOST="localhost"
+    # export VERTICA_PORT="5433"
+    # export VERTICA_DATABASE="docker"
+    # export VERTICA_USERNAME="dbadmin"
+    # export VERTICA_PASSWORD=""
     os.environ['VERTICA_HOST'] = 'localhost'
     os.environ['VERTICA_PORT'] = '5433'
     os.environ['VERTICA_DATABASE'] = 'docker'
@@ -348,3 +353,4 @@ def test_main(cur):
     runner_wrapper(runner, base_options, ['--hierarchical-join', '--save-json-summary'])
 
     Path('x_table_report.html').unlink()
+    Path('x_table_diff_summary.json').unlink()

@@ -4,4 +4,4 @@
 # See that warning on Step 6 here:
 # https://packaging.python.org/guides/single-sourcing-package-version/
 # If we want to do imports here, there is a different approach.
-__version__ = '0.6.4'
+__version__ = '0.6.5'

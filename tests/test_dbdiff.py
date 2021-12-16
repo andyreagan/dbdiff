@@ -65,6 +65,7 @@ def create_x_table(cur):
     cur.execute("INSERT INTO dbdiff.x_table ( join1, join2, missingx, missingx2, dtypemiss, data1, data2, data3, data4) (select 'match1', 'missx22', null, null, null, null, null, null, '');")
     cur.execute("INSERT INTO dbdiff.x_table ( join1, join2, missingx, missingx2, dtypemiss, data1, data2, data3, data4) (select 'missx11', null, null, null, null, null, null, null, '');")
     cur.execute("INSERT INTO dbdiff.x_table ( join1, join2, missingx, missingx2, dtypemiss, data1, data2, data3, data4) (select 'missx12', null, null, null, null, null, null, null, '');")
+    cur.execute("INSERT INTO dbdiff.x_table ( join1, join2, missingx, missingx2, dtypemiss, data1, data2, data3, data4) (select null, null, null, null, null, null, null, null, '');")
     cur.execute('COMMIT;')
 
 
@@ -121,68 +122,129 @@ def test_get_table_exists(cur):
 
 
 def test_check_primary_key(cur):
-    assert check_primary_key(cur, 'dbdiff', 'x_table', [
-                             'join1', 'join2']) == 0
+    assert (
+        check_primary_key(
+            cur,
+            'dbdiff',
+            'x_table',
+            ['join1', 'join2']
+        ) == 0
+    )
     assert check_primary_key(cur, 'dbdiff', 'x_table', ['join1']) == 4
 
 
 def test_select_distinct_rows(cur):
+    x_table_rows = 8
+    x_table_columns = 9
     for use_temp_tables in {True, False}:
         new_table_schema, new_table_name = select_distinct_rows(cur, 'dbdiff', 'x_table', ['join1'])
         # check that new table gets create with N rows
         assert get_table_exists(cur, new_table_schema, 'x_table_dup')
-        assert get_table_exists(cur, new_table_schema, new_table_name)
-        cur.execute('select * from {schema}.{table}'.format(schema=new_table_schema, table=new_table_name))
-        df = pd.DataFrame(cur.fetchall())
-        assert df.shape[0] == 2
-        assert df.shape[1] == 9
-        cur.execute('select * from {schema}.{table}'.format(schema=new_table_schema, table='x_table_dup'))
-        df = pd.DataFrame(cur.fetchall())
-        assert df.shape[0] == 5
-        assert df.shape[1] == 10
+        assert get_table_exists(cur, new_table_schema, 'x_table_dedup')
+        cur.execute('select * from {schema}.{table}'.format(
+            schema=new_table_schema,
+            table=new_table_name)
+        )
+        dedup = pd.DataFrame(cur.fetchall())
+        assert dedup.shape[0] == 3
+        assert dedup.shape[1] == x_table_columns
+        cur.execute('select * from {schema}.{table}'.format(
+            schema=new_table_schema,
+            table='x_table_dup')
+        )
+        dup = pd.DataFrame(cur.fetchall())
+        assert dup.shape[0] == (x_table_rows - dedup.shape[0])
+        assert dup.shape[1] == (x_table_columns + 1)
 
 
 def test_create_joined_table(cur):
-    create_joined_table(cur, x_schema='dbdiff', y_schema='dbdiff',
-                        x_table='x_table', y_table='y_table',
-                        join_cols=['join1', 'join2'],
-                        compare_cols=pd.concat([COMPARE_COLS, JOIN_COLS]),
-                        joined_schema='dbdiff', joined_table='x_table_JOINED')
+    create_joined_table(
+        cur,
+        x_schema='dbdiff',
+        y_schema='dbdiff',
+        x_table='x_table',
+        y_table='y_table',
+        join_cols=['join1', 'join2'],
+        compare_cols=pd.concat([COMPARE_COLS, JOIN_COLS]),
+        joined_schema='dbdiff',
+        joined_table='x_table_JOINED'
+    )
     # check that it is created and has the right number of rows, columns...
     assert get_table_exists(cur, 'dbdiff', 'x_table_JOINED')
-    cur.execute('select * from {schema}.{table}'.format(schema='dbdiff', table='x_table_JOINED'))
+    cur.execute(
+        'select * from {schema}.{table}'.format(
+            schema='dbdiff',
+            table='x_table_JOINED'
+        )
+    )
     df = pd.DataFrame(cur.fetchall())
     assert df.shape[0] == 4
-    assert df.shape[1] == 10
+    # double the comparing columns (x_* and y_*), and pk/join columns:
+    assert df.shape[1] == ((COMPARE_COLS.shape[0] * 2) + JOIN_COLS.shape[0])
 
 
 def test_get_unmatched_rows_straight(cur):
     join_cols = ['join1', 'join2']
-    missing_left_join = [1, 1]
-    missing_right_join = [2, 2]
-    missing_left_total = sum(missing_left_join)
-    missing_right_total = sum(missing_right_join)
-    results = get_unmatched_rows_straight(cur, 'dbdiff', 'dbdiff', 'x_table', 'y_table',
-                                          join_cols, 100)
-    expected_results = {'left': {'count': missing_left_total,
-                                 'sample_shape': (missing_left_total, len(join_cols))},
-                        'right': {'count': missing_right_total,
-                                  'sample_shape': (missing_right_total, len(join_cols))}}
-    assert results['left']['count'] == expected_results['left']['count']
-    assert results['left']['sample'].shape[0] == expected_results['left']['sample_shape'][0]
-    assert results['left']['sample'].shape[1] == expected_results['left']['sample_shape'][1]
-    assert results['right']['count'] == expected_results['right']['count']
-    assert results['right']['sample'].shape[0] == expected_results['right']['sample_shape'][0]
-    assert results['right']['sample'].shape[1] == expected_results['right']['sample_shape'][1]
+    # these are a bit flipped:
+    # the missing_x_join are counts for rows in y that are missing in x
+    # and the missing_y_join are counts for rows *in x* that are *not in y*
+    # the name coming from the *not in y* part of it.
+    y_minus_x = [2, 1]  # formerly, "missing_x_join", now using set notation
+    x_minus_y = [3, 2]  # etc
+    results = get_unmatched_rows_straight(
+        cur,
+        'dbdiff',
+        'dbdiff',
+        'x_table',
+        'y_table',
+        join_cols,
+        100
+    )
+    expected_results = {
+        'x': {
+            'count': sum(x_minus_y),
+            'sample_shape': (sum(x_minus_y), len(join_cols))
+        },
+        'y': {
+            'count': sum(y_minus_x),
+            'sample_shape': (sum(y_minus_x), len(join_cols))
+        }
+    }
+    print(results)
+    print(expected_results)
+    assert results['x']['count'] == expected_results['x']['count']
+    assert results['x']['sample'].shape[0] == expected_results['x']['sample_shape'][0]
+    assert results['x']['sample'].shape[1] == expected_results['x']['sample_shape'][1]
+    assert results['y']['count'] == expected_results['y']['count']
+    assert results['y']['sample'].shape[0] == expected_results['y']['sample_shape'][0]
+    assert results['y']['sample'].shape[1] == expected_results['y']['sample_shape'][1]
 
 
 def test_get_unmatched_rows(cur):
     join_cols = ['join1', 'join2']
-    missing_left_join = [1, 1]
-    missing_right_join = [2, 2]
-    results = get_unmatched_rows(cur, 'dbdiff', 'dbdiff', 'x_table', 'y_table',
-                                 join_cols, 100)
-    expected_results = {j: {side: {'count': d[i], 'sample_shape': (d[i], i + 1)} for side, d in (('left', missing_left_join), ('right', missing_right_join))} for i, j in enumerate(join_cols)}
+    # these are, again, a litte wierd. see note in test_get_unmatched_rows_straight()
+    y_minus_x = [2, 1]
+    x_minus_y = [3, 2]
+    results = get_unmatched_rows(
+        cur,
+        'dbdiff',
+        'dbdiff',
+        'x_table',
+        'y_table',
+        join_cols,
+        100
+    )
+    expected_results = {
+        j: {
+            side: {
+                'count': d[i],
+                'sample_shape': (d[i], i + 1)
+            } for side, d in {
+                'x': x_minus_y,
+                'y': y_minus_x
+            }.items()
+        } for i, j in enumerate(join_cols)
+    }
     for col, expected in expected_results.items():
         logging.info(col)
         for side, expected_info in expected.items():
@@ -210,14 +272,28 @@ def test_insert_diff_table(cur):
     logging.info(cur.fetchall())
     cur.execute('select * from dbdiff.x_table_DIFF')
     logging.info(cur.fetchall())
-    insert_diff_table(cur, joined_schema='dbdiff', joined_table='x_table_JOINED',
-                      diff_schema='dbdiff', diff_table='x_table_DIFF', join_cols=['join1', 'join2'], column='data1')
+    insert_diff_table(
+        cur,
+        joined_schema='dbdiff',
+        joined_table='x_table_JOINED',
+        diff_schema='dbdiff',
+        diff_table='x_table_DIFF',
+        join_cols=['join1', 'join2'],
+        column='data1'
+    )
     cur.execute('select * from {schema}.{table}'.format(schema='dbdiff', table='x_table_DIFF'))
     df = pd.DataFrame(cur.fetchall())
     assert df.shape[0] == 1
     assert df.shape[1] == 3
-    insert_diff_table(cur, joined_schema='dbdiff', joined_table='x_table_JOINED',
-                      diff_schema='dbdiff', diff_table='x_table_DIFF', join_cols=['join1', 'join2'], column='data2')
+    insert_diff_table(
+        cur,
+        joined_schema='dbdiff',
+        joined_table='x_table_JOINED',
+        diff_schema='dbdiff',
+        diff_table='x_table_DIFF',
+        join_cols=['join1', 'join2'],
+        column='data2'
+    )
     cur.execute('select * from {schema}.{table}'.format(schema='dbdiff', table='x_table_DIFF'))
     df = pd.DataFrame(cur.fetchall())
     assert df.shape[0] == 3
@@ -230,7 +306,12 @@ def test_insert_diff_table(cur):
 
 def test_get_diff_rows(cur):
     diff_summary = get_diff_rows(
-        cur, 'dbdiff', 'x_table', ['join1', 'join2'], 100)
+        cur,
+        'dbdiff',
+        'x_table',
+        ['join1', 'join2'],
+        100
+    )
     assert diff_summary['count'] == 2
     assert diff_summary['total_count'] == 3
     assert diff_summary['sample'].shape[0] == 2
@@ -248,8 +329,17 @@ def test_get_column_diffs(cur):
     diff_columns = get_diff_columns(cur, 'dbdiff', 'x_table')
 
     grouped_column_diffs = get_column_diffs(
-        diff_columns, cur, 'dbdiff', 'dbdiff', 'x_table',
-        'dbdiff', 'y_table', ['join1', 'join2'], 100, COMPARE_COLS, True)
+        diff_columns, cur,
+        'dbdiff',
+        'dbdiff',
+        'x_table',
+        'dbdiff',
+        'y_table',
+        ['join1', 'join2'],
+        100,
+        COMPARE_COLS,
+        True
+    )
     logging.info(grouped_column_diffs)
 
     data1_misses = 1
@@ -291,10 +381,13 @@ def test_main(cur):
 
     def runner_wrapper(runner, base_options, addl_options):
         result = runner.invoke(
-            cli, base_options + addl_options)
-        if result.exit_code != 0:
-            print(result.output)
-            logging.info(str(result.exception) + str(result.exc_info))
+            cli,
+            base_options + addl_options,
+            catch_exceptions=False
+        )
+        # if result.exit_code != 0:
+        #     print(result.output)
+        #     logging.info(str(result.exception) + str(result.exc_info))
         assert result.exit_code == 0
 
     runner_wrapper(runner, base_options, [])

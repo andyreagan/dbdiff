@@ -46,8 +46,8 @@ def get_all_col_info(cur: Cursor, schema, x_table, y_schema, y_table, exclude_co
         # this doesn't capture the case where they both could be converted to float to be compared (two hop conversions):
         if (x is None) or (y is None):
             return False
-        left_or_right = implicit_dtype_comparison(x, y) or implicit_dtype_comparison(y, x)
-        return left_or_right
+        x_or_y = implicit_dtype_comparison(x, y) or implicit_dtype_comparison(y, x)
+        return x_or_y
 
     all_keys = list(x_table_info_lookup.keys()) + list(y_table_info_lookup.keys())
     all_col_info = {col: {'x_dtype': x_table_info_lookup.get(col, None),
@@ -160,91 +160,110 @@ def create_joined_table(cur: Cursor, create_insert=False, **kwargs):
     return joined_row_count
 
 
-def get_unmatched_rows_straight(cur: Cursor,
-                                x_schema: str, y_schema: str,
-                                x_table: str, y_table: str,
-                                join_cols: list,
-                                max_rows_column: int) -> Dict[str, Dict[str, Any]]:
+def get_unmatched_rows_straight(
+    cur: Cursor,
+    x_schema: str,
+    y_schema: str,
+    x_table: str,
+    y_table: str,
+    join_cols: list,
+    max_rows_column: int
+) -> Dict[str, Dict[str, Any]]:
+    '''
+    Get rows that don't match on a join using all of the keys ("straight").
+    '''
     all_keys_count = JINJA_ENV.get_template('all_keys_count.sql')
     all_keys_sample = JINJA_ENV.get_template('all_keys_sample.sql')
 
-    results = {'left': {'count': 0, 'query': 'select ...', 'sample': pd.DataFrame()},
-               'right': {'count': 0, 'query': 'select ...', 'sample': pd.DataFrame()}}
+    results = {'x': {'count': 0, 'query': 'select ...', 'sample': pd.DataFrame()},
+               'y': {'count': 0, 'query': 'select ...', 'sample': pd.DataFrame()}}
 
-    for side in {'left', 'right'}:
-        q = all_keys_count.render({'x_schema': x_schema, 'y_schema': y_schema,
-                                   'x_table': x_table, 'y_table': y_table,
-                                   'join_cols': join_cols, 'left': (side == 'left')})
+    for side in {'x', 'y'}:
+        d = {
+            'x_schema': x_schema,
+            'y_schema': y_schema,
+            'x_table': x_table,
+            'y_table': y_table,
+            'join_cols': join_cols,
+            'x': (side == 'x'),
+            'max_rows_column': max_rows_column
+        }
+        q = all_keys_count.render(d)
         cur.execute(q)
         r = cur.fetchall()
         results[side]['count'] = r[0]['COUNT']
-        results[side]['query'] = all_keys_sample.render({'x_schema': x_schema, 'y_schema': y_schema,
-                                                         'x_table': x_table, 'y_table': y_table,
-                                                         'join_cols': join_cols, 'max_rows_column': max_rows_column,
-                                                         'left': (side == 'left')})
+        results[side]['query'] = all_keys_sample.render(d)
         cur.execute(results[side]['query'])
         results[side]['sample'] = pd.DataFrame(cur.fetchall())
 
     return results
 
 
-def get_unmatched_rows(cur: Cursor,
-                       x_schema: str, y_schema: str,
-                       x_table: str, y_table: str,
-                       join_cols: list,
-                       max_rows_column: int) -> Dict[Any, Dict[str, Dict[str, Any]]]:
+def get_unmatched_rows(
+    cur: Cursor,
+    x_schema: str,
+    y_schema: str,
+    x_table: str,
+    y_table: str,
+    join_cols: list,
+    max_rows_column: int
+) -> Dict[Any, Dict[str, Dict[str, Any]]]:
     '''
     Pull out rows that are unmatched between the two tables on the join columns.
     If looking at this hierarchically, we consider the join by
     key a, then key a+b (where a matched), then key a+b+c (where a+b matched), etc
     to see at what level we're missing things.
     '''
-    results = {col: {'left': {'count': 0, 'query': 'select ...', 'sample': pd.DataFrame()},
-                     'right': {'count': 0, 'query': 'select ...', 'sample': pd.DataFrame()}} for col in join_cols}
+    results = {col: {'x': {'count': 0, 'query': 'select ...', 'sample': pd.DataFrame()},
+                     'y': {'count': 0, 'query': 'select ...', 'sample': pd.DataFrame()}} for col in join_cols}
 
     first_key_count = JINJA_ENV.get_template('first_key_count.sql')
     first_key_t = JINJA_ENV.get_template('first_key_sample.sql')
-
-    LOGGER.info('Getting rows that did not match on only the first join column: ' + join_cols[0] + '.')
-    for side in {'left', 'right'}:
-        q = first_key_count.render({'x_schema': x_schema, 'y_schema': y_schema,
-                                    'x_table': x_table, 'y_table': y_table,
-                                    'col': join_cols[0], 'left': (side == 'left')})
-        cur.execute(q)
-        r = cur.fetchall()
-        results[join_cols[0]][side]['count'] = r[0]['COUNT']
-        results[join_cols[0]][side]['query'] = first_key_t.render({'x_schema': x_schema, 'y_schema': y_schema,
-                                                                   'x_table': x_table, 'y_table': y_table,
-                                                                   'col': join_cols[0], 'max_rows': max_rows_column,
-                                                                   'left': (side == 'left')})
-        cur.execute(results[join_cols[0]][side]['query'])
-        results[join_cols[0]][side]['sample'] = pd.DataFrame(cur.fetchall())
-
     sub_keys_count = JINJA_ENV.get_template('sub_keys_count.sql')
     sub_keys_t = JINJA_ENV.get_template('sub_keys_sample.sql')
     sub_keys_g = JINJA_ENV.get_template('sub_keys_grouped.sql')
+
+    LOGGER.info('Getting rows that did not match on only the first join column: ' + join_cols[0] + '.')
+    for side in {'x', 'y'}:
+        d = {
+            'x_schema': x_schema,
+            'y_schema': y_schema,
+            'x_table': x_table,
+            'y_table': y_table,
+            'join_col': join_cols[0],
+            'x': (side == 'x'),
+            'max_rows_column': max_rows_column
+        }
+        q = first_key_count.render(d)
+        cur.execute(q)
+        r = cur.fetchall()
+        results[join_cols[0]][side]['count'] = r[0]['COUNT']
+        results[join_cols[0]][side]['query'] = first_key_t.render(d)
+        cur.execute(results[join_cols[0]][side]['query'])
+        results[join_cols[0]][side]['sample'] = pd.DataFrame(cur.fetchall())
 
     for i in range(1, len(join_cols)):
         LOGGER.info('Getting rows that did not match on the ' + str(i + 1) + '-nd/rd/th join column: ' + join_cols[i] + '.')
         LOGGER.info('This is equivalent to joining the tables on unique rows of ' + ','.join(join_cols[:(i + 1)]) + ' where all but the last already exist.')
 
-        for side in {'left', 'right'}:
-            q = sub_keys_count.render({'x_schema': x_schema, 'y_schema': y_schema,
-                                       'x_table': x_table, 'y_table': y_table,
-                                       'columns': join_cols[:(i + 1)], 'left': (side == 'left')})
+        for side in {'x', 'y'}:
+            d = {
+                'x_schema': x_schema,
+                'y_schema': y_schema,
+                'x_table': x_table,
+                'y_table': y_table,
+                'join_cols': join_cols[:(i + 1)],
+                'x': (side == 'x'),
+                'max_rows_column': max_rows_column
+            }
+            q = sub_keys_count.render(d)
             cur.execute(q)
             r = cur.fetchall()
             results[join_cols[i]][side]['count'] = r[0]['COUNT']
-            results[join_cols[i]][side]['query'] = sub_keys_t.render({'x_schema': x_schema, 'y_schema': y_schema,
-                                                                      'x_table': x_table, 'y_table': y_table,
-                                                                      'columns': join_cols[:(i + 1)], 'max_rows': max_rows_column,
-                                                                      'left': (side == 'left')})
+            results[join_cols[i]][side]['query'] = sub_keys_t.render(d)
             cur.execute(results[join_cols[i]][side]['query'])
             results[join_cols[i]][side]['sample'] = pd.DataFrame(cur.fetchall())
-            results[join_cols[i]][side]['query_grouped'] = sub_keys_g.render({'x_schema': x_schema, 'y_schema': y_schema,
-                                                                              'x_table': x_table, 'y_table': y_table,
-                                                                              'columns': join_cols[:(i + 1)], 'max_rows': max_rows_column,
-                                                                              'left': (side == 'left')})
+            results[join_cols[i]][side]['query_grouped'] = sub_keys_g.render(d)
             cur.execute(results[join_cols[i]][side]['query_grouped'])
             results[join_cols[i]][side]['sample_grouped'] = pd.DataFrame(cur.fetchall())
 

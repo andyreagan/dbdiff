@@ -55,7 +55,7 @@ def get_summary_from_all_info(d: dict) -> dict:
         'column_match_info': df_to_dict(d['column_match_info']),
         'missing_join_info': {side: {k: df_to_dict(v) for k, v in info.items()} for side, info in d['missing_join_info'].items()},
         # just the counts from the diff summary:
-        'diff_summary': {x: d['diff_summary'][x] for x in {'count', 'total_count'}},
+        'diff_summary': d['diff_summary'],
         'hierarchical_join_info': {col: {side: {k: df_to_dict(v) for k, v in info.items()} for side, info in col_info.items()} for col, col_info in d['hierarchical_join_info'].items()}
     }
 
@@ -218,7 +218,6 @@ def main(cur: Cursor,
     # assert x == 0, '# non distinct rows in ' + x_table + ' is ' + str(x)
     # assert y == 0, '# non distinct rows in ' + y_table + ' is ' + str(y)
 
-    hierarchical_join_info = {}
     if hierarchical_join:
         LOGGER.info('Getting rows that are missing on each join key.')
         hierarchical_join_info = get_unmatched_rows(
@@ -230,6 +229,8 @@ def main(cur: Cursor,
             join_cols=join_cols,
             max_rows_column=max_rows_column
         )
+    else:
+        hierarchical_join_info = {}
 
     # create sub-tables to allow a comparison:
     if x != 0:

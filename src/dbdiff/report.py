@@ -13,7 +13,7 @@ def get_max_diferences(column_info: pd.DataFrame) -> int:
 
 
 def reformat_missing_join_info(d: dict, x_table: str, y_table: str) -> dict:
-    return {x_table: d['right'], y_table: d['left']}
+    return {x_table: d['x'], y_table: d['y']}
 
 
 def reformat_hierarchical_join_info(d: dict, x_table: str, y_table: str) -> dict:
@@ -40,7 +40,7 @@ def html_report(x_schema: str, y_schema: str, x_table: str, y_table: str, join_c
     JINJA_ENV.filters['code'] = code
     JINJA_ENV.filters['dfhtml'] = dfhtml
 
-    t = JINJA_ENV.get_template('report.html')
+    t = JINJA_ENV.get_template('html/report.html')
 
     max_differences = get_max_diferences(column_info)
     missing_join_info = reformat_missing_join_info(missing_join_info, x_table, y_table)
@@ -86,12 +86,12 @@ def excel_report(x_schema: str, y_schema: str,
     summary_sheet_data.append({'Summary': 'There are {x_missing_count} rows in {y_table} that are not in {x_table}.'.format(
         x_table=x_table,
         y_table=y_table,
-        x_missing_count=missing_join_info['left']['count']
+        x_missing_count=missing_join_info['x']['count']
     )})
     summary_sheet_data.append({'Summary': 'There are {y_missing_count} rows in {x_table} that are not in {y_table}.'.format(
         x_table=x_table,
         y_table=y_table,
-        y_missing_count=missing_join_info['right']['count']
+        y_missing_count=missing_join_info['y']['count']
     )})
     summary_sheet_data.append({'Summary': "There are {diff_row_count} rows matched between tables that don't line up exactly.".format(diff_row_count=diff_summary['count'])})
     summary_sheet_data.append({'Summary': 'There are {column_info} columns that have differences.'.format(column_info=len(column_info))})
@@ -101,12 +101,12 @@ def excel_report(x_schema: str, y_schema: str,
     summary_sheet_data.append({'Summary': 'The maximum number of differences on any individual column is {max_differences}.'.format(max_differences=max_differences)})
     all_sheets.append(('Summary', pd.DataFrame(summary_sheet_data)))
 
-    if missing_join_info['left']['count'] > 0:
+    if missing_join_info['x']['count'] > 0:
         # all_sheets.append(('Missing rows in {x_table}'.format(x_table=x_table), x_missing_ids))
-        all_sheets.append(('Missing in x', missing_join_info['left']['sample']))
-    if missing_join_info['right']['count'] > 0:
+        all_sheets.append(('Missing in x', missing_join_info['x']['sample']))
+    if missing_join_info['y']['count'] > 0:
         # all_sheets.append(('Missing rows in {y_table}'.format(y_table=y_table), y_missing_ids))
-        all_sheets.append(('Missing in y', missing_join_info['right']['sample']))
+        all_sheets.append(('Missing in y', missing_join_info['y']['sample']))
     if diff_summary['count'] > 0:
         all_sheets.append(('Mismatched rows', diff_summary['sample']))
     for column, info in column_info.items():

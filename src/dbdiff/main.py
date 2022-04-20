@@ -357,7 +357,11 @@ def get_diff_rows_from_joined(cur: Cursor,
     diff_total_count = sum([info['count'] for info in grouped_column_diffs.values()])
     if skip_row_total or (len(grouped_column_diffs) == 0):
         LOGGER.debug("Skipping sample of rows with differences, query to get that sample, and the total # of rows with > 0 differences. Returning only 'total_count', the sum of cell-by-cell differences.")
-        return {'total_count': diff_total_count}
+        return {
+            'sample': [],
+            'count': 0,
+            'total_count': diff_total_count
+        }
 
     LOGGER.info(grouped_column_diffs)
     q = JINJA_ENV.get_template('joined_rows_count.sql').render(

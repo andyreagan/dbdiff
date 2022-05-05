@@ -138,7 +138,7 @@ Development
 The tests rely on a running instance of Vertica.
 Locally, in a separate terminal window, you can start one of these like:
 
-    docker run -p 5433:5433 jbfavre/vertica:9.2.0-7_centos-7
+    docker run -p 5433:5433 vertica/vertica-ce:latest
 
 To run the all tests run:
 

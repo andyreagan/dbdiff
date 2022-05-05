@@ -8,4 +8,4 @@ spec:
         - 'cat'
       tty: true
     - name: 'vertica'
-      image: 'jbfavre/vertica:9.2.0-7_centos-7'
+      image: 'vertica/vertica-ce:latest'

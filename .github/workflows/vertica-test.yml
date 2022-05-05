@@ -9,6 +9,11 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
+    services:
+      vertica:
+        image: vertica/vertica-ce:latest
+        ports:
+          - 5433:5433
     steps:
     - uses: actions/checkout@v3
     - name: Set up Python
@@ -21,8 +26,6 @@ jobs:
         pip install build twine tox
     - name: Build package
       run: python -m build
-    - name: Run vertica
-      run: docker run -p 5433:5433 vertica/vertica-ce:latest
     - name: Check
       run: python3 -m twine check -- dist/*.tar.gz
     - name: Test

@@ -45,7 +45,7 @@ def cur():
     # export VERTICA_PASSWORD=""
     os.environ['VERTICA_HOST'] = 'localhost'
     os.environ['VERTICA_PORT'] = '5433'
-    os.environ['VERTICA_DATABASE'] = 'docker'
+    os.environ['VERTICA_DATABASE'] = 'VMart'
     os.environ['VERTICA_USERNAME'] = 'dbadmin'
     os.environ['VERTICA_PASSWORD'] = ''
     with get_cur() as c:

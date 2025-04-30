@@ -1,6 +1,9 @@
 Overview
 ========
 
+[![Test Status](https://github.com/andyreagan/dbdiff/actions/workflows/vertica-test.yml/badge.svg)](https://github.com/andyreagan/dbdiff/actions/workflows/vertica-test.yml)
+[![PyPI version](https://badge.fury.io/py/dbdiff.svg)](https://badge.fury.io/py/dbdiff)
+
 Compare two tables on Vertica,
 that are expected to be exactly the same.
 

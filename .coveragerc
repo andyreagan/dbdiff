@@ -14,4 +14,3 @@ disable_warnings = no-data-collected
 show_missing = true
 precision = 2
 omit = *migrations*
-

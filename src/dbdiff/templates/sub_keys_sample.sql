@@ -10,4 +10,3 @@ ORDER BY {% for col in join_cols %}{% if x %}x{% else %}y{% endif %}.{{ col }}{%
 {% block limit %}
 LIMIT {{ max_rows_column }}
 {% endblock %}
-

@@ -12,4 +12,3 @@ ORDER BY 2 DESC
 {% block limit %}
 LIMIT {{ max_rows_column }}
 {% endblock %}
-

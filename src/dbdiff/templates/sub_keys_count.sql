@@ -2,4 +2,3 @@
 {% block select %}
 SELECT COUNT(*)
 {% endblock %}
-

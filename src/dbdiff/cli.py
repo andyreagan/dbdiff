@@ -243,10 +243,9 @@ def cli(
             f.write(report)
     elif output_format == "XLSX":
         reports = excel_report(**all_info)
-        writer = pd.ExcelWriter(x_table + "_report.xlsx", engine="xlsxwriter")
-        for sheet_name, df in reports:
-            df.to_excel(writer, sheet_name=sheet_name, index=False)
-        writer.save()
+        with pd.ExcelWriter(x_table + "_report.xlsx", engine="xlsxwriter") as writer:
+            for sheet_name, df in reports:
+                df.to_excel(writer, sheet_name=sheet_name, index=False)
 
     if save_json_summary:
         # get the parts of the info that aren't dataframes

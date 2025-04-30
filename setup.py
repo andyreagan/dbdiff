@@ -52,7 +52,7 @@ setup(
     install_requires=[
         "click",
         "requests",
-        "pandas",
+        "pandas>=1.0.0",
         "Jinja2",
         "python-dotenv",
         "vertica_python",

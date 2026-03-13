@@ -65,9 +65,10 @@ python_files = ["test_*.py", "*_test.py", "tests.py"]
 addopts = [
     "-ra",
     "--strict-markers",
-    "--doctest-modules",
-    "--doctest-glob=*.rst",
     "--tb=short",
+]
+markers = [
+    "integration: requires a running Vertica instance",
 ]
 testpaths = ["tests"]
 

@@ -1,7 +1,7 @@
 Overview
 ========
 
-[![Test Status](https://github.com/andyreagan/dbdiff/actions/workflows/vertica-test.yml/badge.svg)](https://github.com/andyreagan/dbdiff/actions/workflows/vertica-test.yml)
+[![Unit Tests](https://github.com/andyreagan/dbdiff/actions/workflows/unit-test.yml/badge.svg)](https://github.com/andyreagan/dbdiff/actions/workflows/unit-test.yml)
 [![PyPI version](https://badge.fury.io/py/dbdiff.svg)](https://badge.fury.io/py/dbdiff)
 
 Compare two tables on Vertica,
@@ -138,11 +138,26 @@ Options:
 Development
 ===========
 
-The tests rely on a running instance of Vertica.
-Locally, in a separate terminal window, you can start one of these like:
+Unit tests (no Vertica required) cover dtype helpers, implicit type coercion,
+SQL template rendering, report generation, and CLI surface checks:
 
-    docker run -p 5433:5433 vertica/vertica-ce:latest
+    pytest tests/test_unit.py
 
-To run the all tests run:
+Integration tests
+-----------------
 
-    tox
+The integration test suite in `tests/test_dbdiff.py` requires a running Vertica instance.
+These tests are marked with `@pytest.mark.integration` and are **skipped by default**.
+
+To run them, start a Vertica instance and then:
+
+    pytest -m integration
+
+> **Note:** As of March 2026, Vertica / OpenText no longer provides a public
+> Community Edition Docker image (`vertica/vertica-ce`). The image was removed
+> from Docker Hub, so CI integration tests have been disabled. If Vertica
+> begins publishing a public container image again in the future, integration
+> tests should be re-enabled in CI.
+>
+> **Maintenance item:** Periodically check whether a public Vertica CE container
+> becomes available (e.g. on Docker Hub under `vertica/` or `opentext/`).

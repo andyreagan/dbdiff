@@ -1,3 +1,8 @@
+"""Integration tests that require a running Vertica instance.
+
+Run with: pytest tests/test_dbdiff.py -m integration
+"""
+
 import logging
 import os
 from pathlib import Path
@@ -21,6 +26,8 @@ from dbdiff.vertica import get_column_info
 from dbdiff.vertica import get_column_info_lookup
 from dbdiff.vertica import get_cur
 from dbdiff.vertica import get_table_exists
+
+pytestmark = pytest.mark.integration
 
 logging.basicConfig(format="%(asctime)s - %(message)s", level=logging.INFO)
 VALID_COL = {"comparable": True, "exclude": False}

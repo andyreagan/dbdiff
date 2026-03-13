@@ -1,0 +1,86 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "dbdiff"
+version = "0.7.0"
+description = "Compare two tables on Vertica."
+readme = "README.md"
+license = { text = "MIT" }
+authors = [{ name = "Andy Reagan", email = "andy@andyreagan.com" }]
+requires-python = ">=3.10"
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: Unix",
+    "Operating System :: POSIX",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Utilities",
+]
+dependencies = [
+    "click",
+    "requests",
+    "charset-normalizer<3.4.5",
+    "numpy<2.4.3",
+    "pandas>=1.0.0",
+    "Jinja2",
+    "python-dotenv",
+    "vertica_python",
+    "xlsxwriter",
+]
+
+[project.urls]
+Homepage = "https://github.com/andyreagan/dbdiff"
+Repository = "https://github.com/andyreagan/dbdiff"
+Issues = "https://github.com/andyreagan/dbdiff/issues"
+
+[project.scripts]
+dbdiff = "dbdiff.cli:cli"
+
+[dependency-groups]
+dev = [
+    "pytest",
+    "pytest-cov",
+    "click",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/dbdiff"]
+
+[tool.hatch.build.targets.sdist]
+include = ["src/", "tests/", "README.md", "LICENSE", "CHANGELOG.md"]
+
+[tool.pytest.ini_options]
+norecursedirs = ["migrations"]
+python_files = ["test_*.py", "*_test.py", "tests.py"]
+addopts = [
+    "-ra",
+    "--strict-markers",
+    "--doctest-modules",
+    "--doctest-glob=*.rst",
+    "--tb=short",
+]
+testpaths = ["tests"]
+
+[tool.isort]
+force_single_line = true
+line_length = 120
+known_first_party = ["dbdiff"]
+default_section = "THIRDPARTY"
+forced_separate = ["test_dbdiff"]
+not_skip = ["__init__.py"]
+skip = ["migrations"]
+
+[tool.flake8]
+max-line-length = 140
+ignore = ["E501", "W504"]
+exclude = ["*/migrations/*"]

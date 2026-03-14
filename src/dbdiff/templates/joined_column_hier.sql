@@ -4,7 +4,11 @@
          WHERE {{ join_cols[0] }} IN (
              SELECT {{ join_cols[0] }}
              FROM {{ joined_schema }}.{{ joined_table }}
-             WHERE (x_{{ column }} <=> y_{{ column }}) IS FALSE
+             WHERE {% if dialect == "vertica" -%}
+             (x_{{ column }} <=> y_{{ column }}) IS FALSE
+             {%- else -%}
+             (x_{{ column }} IS DISTINCT FROM y_{{ column }})
+             {%- endif %}
              ORDER BY {{ join_cols|join(", ") }}
              {% if limit %}LIMIT {{ limit }}{% endif %}
          )

@@ -13,6 +13,11 @@ JINJA_ENV = Environment(loader=PackageLoader("dbdiff", "templates"))
 LOGGER = logging.getLogger(__name__)
 
 
+def set_dialect(dialect: str = "vertica") -> None:
+    """Set the SQL dialect for template rendering."""
+    JINJA_ENV.globals["dialect"] = dialect
+
+
 def is_numeric_like(dtype: str):
     dtype_l = dtype.lower()
     return any({"int" in dtype_l, "float" in dtype_l, "numeric" in dtype_l})

@@ -6,7 +6,17 @@ SELECT {% for col in join_cols -%}x.{{ col }} AS {{ col }}{% if not loop.last %}
        {% endfor -%}
   FROM {{ x_schema }}.{{ x_table }} x
 INNER JOIN {{ y_schema }}.{{ y_table }} y
-       ON {% for col in join_cols[:-1] %}x.{{ col }} {% if loop.first %}={% else %}<=>{% endif %} y.{{ col }}{% if not loop.last %} AND {% endif %}
+       ON {% for col in join_cols[:-1] -%}
+       {%- if loop.first -%}
+       x.{{ col }} = y.{{ col }}
+       {%- else -%}
+       {%- if dialect == "vertica" -%}
+       x.{{ col }} <=> y.{{ col }}
+       {%- else -%}
+       x.{{ col }} IS NOT DISTINCT FROM y.{{ col }}
+       {%- endif -%}
+       {%- endif -%}
+       {%- if not loop.last %} AND {% endif %}
        {% endfor -%}
 GROUP BY {% for col in join_cols %}x.{{ col }}{% if not loop.last %}, {% endif %}{% endfor %}
        ) x
@@ -15,11 +25,31 @@ SELECT {% for col in join_cols -%}y.{{ col }} AS {{ col }}{% if not loop.last %}
        {% endfor -%}
   FROM {{ y_schema }}.{{ y_table }} y
 INNER JOIN {{ x_schema }}.{{ x_table }} x
-       ON {% for col in join_cols[:-1] %}y.{{ col }} {% if loop.first %}={% else %}<=>{% endif %} x.{{ col }}{% if not loop.last %} AND {% endif %}
+       ON {% for col in join_cols[:-1] -%}
+       {%- if loop.first -%}
+       y.{{ col }} = x.{{ col }}
+       {%- else -%}
+       {%- if dialect == "vertica" -%}
+       y.{{ col }} <=> x.{{ col }}
+       {%- else -%}
+       y.{{ col }} IS NOT DISTINCT FROM x.{{ col }}
+       {%- endif -%}
+       {%- endif -%}
+       {%- if not loop.last %} AND {% endif %}
        {% endfor -%}
        GROUP BY {% for col in join_cols %}y.{{ col }}{% if not loop.last %}, {% endif %}{% endfor %}
        ) y
-       ON {% for col in join_cols %}x.{{ col }} {% if loop.first %}={% else %}<=>{% endif %} y.{{ col }}{% if not loop.last %} AND {% endif %}
+       ON {% for col in join_cols -%}
+       {%- if loop.first -%}
+       x.{{ col }} = y.{{ col }}
+       {%- else -%}
+       {%- if dialect == "vertica" -%}
+       x.{{ col }} <=> y.{{ col }}
+       {%- else -%}
+       x.{{ col }} IS NOT DISTINCT FROM y.{{ col }}
+       {%- endif -%}
+       {%- endif -%}
+       {%- if not loop.last %} AND {% endif %}
        {% endfor -%}
 {% endblock %}
 {% block where %}

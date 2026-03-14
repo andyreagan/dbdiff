@@ -19,13 +19,24 @@ CREATE TABLE {{ joined_schema }}.{{ joined_table }} AS
             {% if row.name in join_cols -%}
             COALESCE(x.{{ row.name }}, y.{{ row.name }}) AS {{ row.name -}}
             {% else -%}
+            {%- if dialect == "sqlite" -%}
             CAST(x.{{ row.name }} AS {{ row.x_dtype }}) AS x_{{ row.name }},
             CAST(y.{{ row.name }} AS {{ row.x_dtype }}) AS y_{{ row.name -}}
+            {%- else -%}
+            x.{{ row.name }}::{{ row.x_dtype }} AS x_{{ row.name }},
+            y.{{ row.name }}::{{ row.x_dtype }} AS y_{{ row.name -}}
+            {%- endif -%}
             {%- endif -%}
             {%- if not loop.last %},{% endif -%}
             {%- endfor %}
        FROM {{ x_schema }}.{{ x_table }} AS x
  INNER JOIN {{ y_schema }}.{{ y_table }} AS y
-            ON {% for col in join_cols %}x.{{ col }} IS NOT DISTINCT FROM y.{{ col }}{% if not loop.last %} AND {% endif %}
+            ON {% for col in join_cols -%}
+            {%- if dialect == "sqlite" -%}
+            x.{{ col }} IS y.{{ col }}
+            {%- else -%}
+            x.{{ col }} IS NOT DISTINCT FROM y.{{ col }}
+            {%- endif -%}
+            {%- if not loop.last %} AND {% endif %}
             {% endfor %}
 {%- endif %}

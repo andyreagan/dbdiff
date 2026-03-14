@@ -1,5 +1,6 @@
+{% if not use_temp_table and dialect != "vertica" %}CREATE TABLE {{ schema_name }}.{{ table_name_dedup }} AS {% endif -%}
     SELECT x.*
-{% if not use_temp_table %}INTO {{ schema_name }}.{{ table_name_dedup }}{% endif %}
+{% if not use_temp_table and dialect == "vertica" %}INTO {{ schema_name }}.{{ table_name_dedup }}{% endif %}
       FROM {{ schema_name }}.{{ table_name }} x
 INNER JOIN (
     SELECT {{ group_cols }},

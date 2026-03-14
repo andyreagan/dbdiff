@@ -14,7 +14,7 @@ INSERT INTO {{ joined_schema }}.{{ joined_table }} (
             {%- if row.name in join_cols -%}
             COALESCE(x.{{ row.name }}, y.{{ row.name }}) AS {{ row.name -}}
             {%- else -%}
-            {%- if dialect == "vertica" -%}
+            {%- if dialect in ("vertica", "postgres", "duckdb") -%}
             x.{{ row.name }}::{{ row.x_dtype }} AS x_{{ row.name }},
             y.{{ row.name }}::{{ row.x_dtype }} AS y_{{ row.name -}}
             {%- else -%}
@@ -29,6 +29,8 @@ INSERT INTO {{ joined_schema }}.{{ joined_table }} (
             ON {% for col in join_cols -%}
             {%- if dialect == "vertica" -%}
             x.{{ col }} <=> y.{{ col }}
+            {%- elif dialect == "sqlite" -%}
+            x.{{ col }} IS y.{{ col }}
             {%- else -%}
             x.{{ col }} IS NOT DISTINCT FROM y.{{ col }}
             {%- endif -%}

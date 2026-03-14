@@ -155,7 +155,8 @@ def get_summary_from_all_info(d: dict) -> dict:
 @click.option(
     "--dialect",
     default="vertica",
-    help="SQL dialect to use for generated SQL (default: vertica).",
+    type=click.Choice(["vertica", "postgres", "duckdb", "sqlite"], case_sensitive=False),
+    help="SQL dialect to use for generated SQL.",
     show_default=True,
 )
 @click.version_option(__version__)

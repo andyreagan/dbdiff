@@ -12,6 +12,8 @@ INNER JOIN {{ y_schema }}.{{ y_table }} y
        {%- else -%}
        {%- if dialect == "vertica" -%}
        x.{{ col }} <=> y.{{ col }}
+       {%- elif dialect == "sqlite" -%}
+       x.{{ col }} IS y.{{ col }}
        {%- else -%}
        x.{{ col }} IS NOT DISTINCT FROM y.{{ col }}
        {%- endif -%}
@@ -45,6 +47,8 @@ INNER JOIN {{ x_schema }}.{{ x_table }} x
        {%- else -%}
        {%- if dialect == "vertica" -%}
        x.{{ col }} <=> y.{{ col }}
+       {%- elif dialect == "sqlite" -%}
+       x.{{ col }} IS y.{{ col }}
        {%- else -%}
        x.{{ col }} IS NOT DISTINCT FROM y.{{ col }}
        {%- endif -%}

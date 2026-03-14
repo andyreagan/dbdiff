@@ -4,6 +4,8 @@
            ON {% for col in join_cols -%}
            {%- if dialect == "vertica" -%}
            x.{{ col }} <=> y.{{ col }}
+           {%- elif dialect == "sqlite" -%}
+           x.{{ col }} IS y.{{ col }}
            {%- else -%}
            x.{{ col }} IS NOT DISTINCT FROM y.{{ col }}
            {%- endif -%}

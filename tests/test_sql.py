@@ -9,12 +9,27 @@ from jinja2 import Environment, PackageLoader
 # and sqlglot doesn't have a specific Vertica dialect
 PARSE_DIALECT = "postgres"
 
+# Mapping from dbdiff dialect to sqlglot parse dialect
+DIALECT_TO_SQLGLOT = {
+    "vertica": "postgres",
+    "postgres": "postgres",
+    "duckdb": "duckdb",
+    "sqlite": "sqlite",
+}
+
 
 @pytest.fixture
 def jinja_env():
     """Create a Jinja2 environment for rendering templates."""
     env = Environment(loader=PackageLoader("dbdiff", "templates"))
     env.globals["dialect"] = "vertica"
+    return env
+
+
+def make_jinja_env(dialect):
+    """Create a Jinja2 environment for a specific dialect."""
+    env = Environment(loader=PackageLoader("dbdiff", "templates"))
+    env.globals["dialect"] = dialect
     return env
 
 
@@ -426,3 +441,219 @@ class TestSQLTemplateRendering:
             columns=["amount", "name"],
         )
         sqlglot.parse(sql, dialect=PARSE_DIALECT, error_level=sqlglot.ErrorLevel.RAISE)
+
+
+@pytest.fixture(params=["postgres", "duckdb", "sqlite"])
+def dialect_env(request):
+    """Parametrized fixture providing (jinja_env, sqlglot_dialect) for each target dialect."""
+    dialect = request.param
+    env = make_jinja_env(dialect)
+    return env, DIALECT_TO_SQLGLOT[dialect]
+
+
+@pytest.fixture
+def dialect_compare_cols():
+    """Sample dataframe for compare_cols with multiple columns."""
+    return pd.DataFrame(
+        {
+            "x_dtype": ["INTEGER", "VARCHAR(100)", "FLOAT", "DATE"],
+            "y_dtype": ["INTEGER", "VARCHAR(100)", "FLOAT", "DATE"],
+        },
+        index=["id", "name", "amount", "created_at"],
+    )
+
+
+@pytest.fixture
+def dialect_join_cols():
+    """Sample join column list."""
+    return ["id"]
+
+
+class TestDialectTemplateRendering:
+    """Test that dialect-specific SQL templates render and parse correctly for postgres, duckdb, and sqlite."""
+
+    def test_create_joined_table(self, dialect_env, dialect_compare_cols, dialect_join_cols):
+        """Test create_joined_table.sql renders valid SQL for target dialect."""
+        env, parse_dialect = dialect_env
+        template = env.get_template("create_joined_table.sql")
+        sql = template.render(
+            joined_schema="output_schema",
+            joined_table="joined_table",
+            compare_cols=dialect_compare_cols,
+            join_cols=dialect_join_cols,
+        )
+        sqlglot.parse(sql, dialect=parse_dialect, error_level=sqlglot.ErrorLevel.RAISE)
+
+    def test_create_joined_table_from_selectinto(
+        self, dialect_env, dialect_compare_cols, dialect_join_cols
+    ):
+        """Test create_joined_table_from_selectinto.sql renders valid SQL for target dialect."""
+        env, parse_dialect = dialect_env
+        template = env.get_template("create_joined_table_from_selectinto.sql")
+        sql = template.render(
+            x_schema="x_schema",
+            y_schema="y_schema",
+            x_table="x_table",
+            y_table="y_table",
+            joined_schema="output_schema",
+            joined_table="joined_table",
+            compare_cols=dialect_compare_cols,
+            join_cols=dialect_join_cols,
+        )
+        sqlglot.parse(sql, dialect=parse_dialect, error_level=sqlglot.ErrorLevel.RAISE)
+
+    def test_insert_joined_table(self, dialect_env, dialect_compare_cols, dialect_join_cols):
+        """Test insert_joined_table.sql renders valid SQL for target dialect."""
+        env, parse_dialect = dialect_env
+        template = env.get_template("insert_joined_table.sql")
+        sql = template.render(
+            x_schema="x_schema",
+            y_schema="y_schema",
+            x_table="x_table",
+            y_table="y_table",
+            joined_schema="output_schema",
+            joined_table="joined_table",
+            compare_cols=dialect_compare_cols,
+            join_cols=dialect_join_cols,
+        )
+        sqlglot.parse(sql, dialect=parse_dialect, error_level=sqlglot.ErrorLevel.RAISE)
+
+    def test_all_keys_count(self, dialect_env, dialect_join_cols):
+        """Test all_keys_count.sql renders valid SQL for target dialect."""
+        env, parse_dialect = dialect_env
+        template = env.get_template("all_keys_count.sql")
+        sql = template.render(
+            x_schema="x_schema",
+            y_schema="y_schema",
+            x_table="x_table",
+            y_table="y_table",
+            join_cols=dialect_join_cols,
+            x=True,
+        )
+        sqlglot.parse(sql, dialect=parse_dialect, error_level=sqlglot.ErrorLevel.RAISE)
+
+    def test_all_keys_sample(self, dialect_env, dialect_join_cols):
+        """Test all_keys_sample.sql renders valid SQL for target dialect."""
+        env, parse_dialect = dialect_env
+        template = env.get_template("all_keys_sample.sql")
+        sql = template.render(
+            x_schema="x_schema",
+            y_schema="y_schema",
+            x_table="x_table",
+            y_table="y_table",
+            join_cols=dialect_join_cols,
+            x=True,
+            max_rows_column=10,
+        )
+        sqlglot.parse(sql, dialect=parse_dialect, error_level=sqlglot.ErrorLevel.RAISE)
+
+    def test_sub_keys_count(self, dialect_env):
+        """Test sub_keys_count.sql renders valid SQL for target dialect."""
+        env, parse_dialect = dialect_env
+        template = env.get_template("sub_keys_count.sql")
+        sql = template.render(
+            x_schema="x_schema",
+            y_schema="y_schema",
+            x_table="x_table",
+            y_table="y_table",
+            join_cols=["id", "name"],
+            x=True,
+        )
+        sqlglot.parse(sql, dialect=parse_dialect, error_level=sqlglot.ErrorLevel.RAISE)
+
+    def test_sub_keys_sample(self, dialect_env):
+        """Test sub_keys_sample.sql renders valid SQL for target dialect."""
+        env, parse_dialect = dialect_env
+        template = env.get_template("sub_keys_sample.sql")
+        sql = template.render(
+            x_schema="x_schema",
+            y_schema="y_schema",
+            x_table="x_table",
+            y_table="y_table",
+            join_cols=["id", "name"],
+            x=True,
+            max_rows_column=10,
+        )
+        sqlglot.parse(sql, dialect=parse_dialect, error_level=sqlglot.ErrorLevel.RAISE)
+
+    def test_sub_keys_grouped(self, dialect_env):
+        """Test sub_keys_grouped.sql renders valid SQL for target dialect."""
+        env, parse_dialect = dialect_env
+        template = env.get_template("sub_keys_grouped.sql")
+        sql = template.render(
+            x_schema="x_schema",
+            y_schema="y_schema",
+            x_table="x_table",
+            y_table="y_table",
+            join_cols=["id", "name"],
+            x=True,
+            max_rows_column=10,
+        )
+        sqlglot.parse(sql, dialect=parse_dialect, error_level=sqlglot.ErrorLevel.RAISE)
+
+    def test_joined_count(self, dialect_env):
+        """Test joined_count.sql renders valid SQL for target dialect."""
+        env, parse_dialect = dialect_env
+        template = env.get_template("joined_count.sql")
+        sql = template.render(
+            column="amount", joined_schema="output_schema", joined_table="joined_table"
+        )
+        sqlglot.parse(sql, dialect=parse_dialect, error_level=sqlglot.ErrorLevel.RAISE)
+
+    def test_joined_column(self, dialect_env):
+        """Test joined_column.sql renders valid SQL for target dialect."""
+        env, parse_dialect = dialect_env
+        template = env.get_template("joined_column.sql")
+        sql = template.render(
+            column="amount", joined_schema="output_schema", joined_table="joined_table"
+        )
+        sqlglot.parse(sql, dialect=parse_dialect, error_level=sqlglot.ErrorLevel.RAISE)
+
+    def test_joined_column_raw(self, dialect_env, dialect_join_cols):
+        """Test joined_column_raw.sql renders valid SQL for target dialect."""
+        env, parse_dialect = dialect_env
+        template = env.get_template("joined_column_raw.sql")
+        sql = template.render(
+            column="amount",
+            joined_schema="output_schema",
+            joined_table="joined_table",
+            join_cols=dialect_join_cols,
+        )
+        sqlglot.parse(sql, dialect=parse_dialect, error_level=sqlglot.ErrorLevel.RAISE)
+
+    def test_joined_column_hier(self, dialect_env, dialect_join_cols):
+        """Test joined_column_hier.sql renders valid SQL for target dialect."""
+        env, parse_dialect = dialect_env
+        template = env.get_template("joined_column_hier.sql")
+        sql = template.render(
+            column="amount",
+            joined_schema="output_schema",
+            joined_table="joined_table",
+            join_cols=dialect_join_cols,
+            schema="x_schema",
+            table="x_table",
+            limit=10,
+        )
+        sqlglot.parse(sql, dialect=parse_dialect, error_level=sqlglot.ErrorLevel.RAISE)
+
+    def test_joined_rows_count(self, dialect_env):
+        """Test joined_rows_count.sql renders valid SQL for target dialect."""
+        env, parse_dialect = dialect_env
+        template = env.get_template("joined_rows_count.sql")
+        sql = template.render(
+            joined_schema="output_schema",
+            joined_table="joined_table",
+            columns=["amount", "name"],
+        )
+        sqlglot.parse(sql, dialect=parse_dialect, error_level=sqlglot.ErrorLevel.RAISE)
+
+    def test_joined_rows_sample(self, dialect_env):
+        """Test joined_rows_sample.sql renders valid SQL for target dialect."""
+        env, parse_dialect = dialect_env
+        template = env.get_template("joined_rows_sample.sql")
+        sql = template.render(
+            joined_schema="output_schema",
+            joined_table="joined_table",
+            columns=["amount", "name"],
+        )
+        sqlglot.parse(sql, dialect=parse_dialect, error_level=sqlglot.ErrorLevel.RAISE)

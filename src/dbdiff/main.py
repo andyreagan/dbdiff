@@ -5,9 +5,26 @@ from typing import Any
 
 import pandas as pd
 from jinja2 import Environment, PackageLoader
-from vertica_python.vertica.cursor import Cursor
 
-from dbdiff.vertica import get_column_info_lookup, implicit_dtype_comparison
+from dbdiff.vertica import get_column_info_lookup as vertica_get_column_info_lookup
+from dbdiff.vertica import implicit_dtype_comparison as vertica_implicit_dtype_comparison
+
+# Current dialect, set by set_dialect()
+_current_dialect = "vertica"
+
+
+def _get_column_info_lookup(cur, schema_name, table_name):
+    if _current_dialect == "duckdb":
+        from dbdiff.duckdb_backend import get_column_info_lookup as duckdb_get_column_info_lookup
+        return duckdb_get_column_info_lookup(cur, schema_name, table_name)
+    return vertica_get_column_info_lookup(cur, schema_name, table_name)
+
+
+def _implicit_dtype_comparison(x_dtype, y_dtype):
+    if _current_dialect == "duckdb":
+        from dbdiff.duckdb_backend import implicit_dtype_comparison as duckdb_implicit_dtype_comparison
+        return duckdb_implicit_dtype_comparison(x_dtype, y_dtype)
+    return vertica_implicit_dtype_comparison(x_dtype, y_dtype)
 
 JINJA_ENV = Environment(loader=PackageLoader("dbdiff", "templates"))
 LOGGER = logging.getLogger(__name__)
@@ -15,7 +32,16 @@ LOGGER = logging.getLogger(__name__)
 
 def set_dialect(dialect: str = "vertica") -> None:
     """Set the SQL dialect for template rendering."""
+    global _current_dialect
+    _current_dialect = dialect
     JINJA_ENV.globals["dialect"] = dialect
+
+
+def _null_safe_eq(left_alias: str, col: str, right_alias: str) -> str:
+    """Return a null-safe equality expression for the current dialect."""
+    if _current_dialect == "vertica":
+        return f"{left_alias}.{col} <=> {right_alias}.{col}"
+    return f"{left_alias}.{col} IS NOT DISTINCT FROM {right_alias}.{col}"
 
 
 def is_numeric_like(dtype: str):
@@ -28,7 +54,7 @@ def is_date_like(dtype: str):
     return "date" in dtype_l
 
 
-def check_primary_key(cur: Cursor, schema: str, table: str, join_cols: list) -> int:
+def check_primary_key(cur, schema: str, table: str, join_cols: list) -> int:
     """Given a list of columns return the # of records for which they are NOT
     a primary key."""
 
@@ -47,7 +73,7 @@ def check_primary_key(cur: Cursor, schema: str, table: str, join_cols: list) -> 
 
 
 def get_all_col_info(
-    cur: Cursor,
+    cur,
     schema,
     x_table,
     y_schema,
@@ -57,14 +83,14 @@ def get_all_col_info(
     save_column_summary_format,
 ) -> pd.DataFrame:
     LOGGER.info("Getting column info for both tables.")
-    x_table_info_lookup = get_column_info_lookup(cur, schema, x_table)
-    y_table_info_lookup = get_column_info_lookup(cur, y_schema, y_table)
+    x_table_info_lookup = _get_column_info_lookup(cur, schema, x_table)
+    y_table_info_lookup = _get_column_info_lookup(cur, y_schema, y_table)
 
     def comparable_(x, y) -> bool:
         # this doesn't capture the case where they both could be converted to float to be compared (two hop conversions):
         if (x is None) or (y is None):
             return False
-        x_or_y = implicit_dtype_comparison(x, y) or implicit_dtype_comparison(y, x)
+        x_or_y = _implicit_dtype_comparison(x, y) or _implicit_dtype_comparison(y, x)
         return x_or_y
 
     all_keys = list(x_table_info_lookup.keys()) + list(y_table_info_lookup.keys())
@@ -108,7 +134,7 @@ def get_all_col_info(
 
 
 def select_distinct_rows(
-    cur: Cursor, schema: str, table: str, join_cols: list, use_temp_tables: bool = False
+    cur, schema: str, table: str, join_cols: list, use_temp_tables: bool = False
 ) -> tuple[str, str]:
     """Select only the rows that are distinct on join_cols.
     *Instead of deleting the rows, we'll select those without duplicates into a
@@ -121,12 +147,16 @@ def select_distinct_rows(
     )
     LOGGER.info(drop_q)
     cur.execute(drop_q)
+    if _current_dialect == "vertica":
+        join_expr = " AND ".join([_null_safe_eq("x", col, "y") for col in join_cols])
+    else:
+        join_expr = " AND ".join(["x.{0} IS NOT DISTINCT FROM y.{0}".format(col) for col in join_cols])
     q = JINJA_ENV.get_template("create_dedup.sql").render(
         schema_name=schema,
         table_name=table,
         table_name_dedup=(table + "_dedup"),
         group_cols=", ".join(join_cols),
-        join_cols=" AND ".join(["x.{0} <=> y.{0}".format(col) for col in join_cols]),
+        join_cols=join_expr,
         use_temp_table=use_temp_tables,
     )
     if use_temp_tables:
@@ -147,7 +177,7 @@ def select_distinct_rows(
         table_name=table,
         table_name_dup=(table + "_dup"),
         group_cols=", ".join(join_cols),
-        join_cols=" AND ".join(["x.{0} <=> y.{0}".format(col) for col in join_cols]),
+        join_cols=join_expr,
         use_temp_table=use_temp_tables,
     )
     if use_temp_tables:
@@ -162,7 +192,7 @@ def select_distinct_rows(
     return (schema, "v_temp_schema")[use_temp_tables], f"{table}_dedup"
 
 
-def create_joined_table(cur: Cursor, create_insert=False, **kwargs):
+def create_joined_table(cur, create_insert=False, **kwargs):
     """
     Joins two tables x and y.
     :param cur: vertica python Cursor
@@ -203,7 +233,7 @@ def create_joined_table(cur: Cursor, create_insert=False, **kwargs):
 
 
 def get_unmatched_rows_straight(
-    cur: Cursor,
+    cur,
     x_schema: str,
     y_schema: str,
     x_table: str,
@@ -244,7 +274,7 @@ def get_unmatched_rows_straight(
 
 
 def get_unmatched_rows(
-    cur: Cursor,
+    cur,
     x_schema: str,
     y_schema: str,
     x_table: str,
@@ -332,7 +362,7 @@ def get_unmatched_rows(
 
 
 def create_diff_table(
-    cur: Cursor, schema: str, table: str, join_cols: list, all_col_info_df: pd.DataFrame
+    cur, schema: str, table: str, join_cols: list, all_col_info_df: pd.DataFrame
 ) -> str:
     drop_q = JINJA_ENV.get_template("table_drop.sql").render(schema_name=schema, table_name=table)
     # so simple that putting into a template would make this harder to follow...
@@ -350,13 +380,13 @@ def create_diff_table(
     return q
 
 
-def insert_diff_table(cur: Cursor, **kwargs) -> None:
+def insert_diff_table(cur, **kwargs) -> None:
     cur.execute(JINJA_ENV.get_template("insert_diff.sql").render(kwargs))
     cur.execute("COMMIT;")
 
 
 def get_diff_rows(
-    cur: Cursor,
+    cur,
     output_schema: str,
     x_table: str,
     join_cols: list,
@@ -390,7 +420,7 @@ def get_diff_rows(
         joined_table=(x_table + "_JOINED"),
         diff_table=(x_table + "_DIFF"),
         group_cols=", ".join(join_cols),
-        join_cols=" AND ".join(["x.{0} <=> joined.{0}".format(col) for col in join_cols]),
+        join_cols=" AND ".join([_null_safe_eq("x", col, "joined") for col in join_cols]),
     )
     LOGGER.info(q)
     cur.execute(q + " LIMIT " + str(max_rows_all))
@@ -405,7 +435,7 @@ def get_diff_rows(
 
 
 def get_diff_rows_from_joined(
-    cur: Cursor,
+    cur,
     grouped_column_diffs: dict,
     output_schema: str,
     x_table: str,
@@ -466,7 +496,7 @@ def get_diff_rows_from_joined(
     }
 
 
-def get_diff_columns(cur: Cursor, output_schema: str, x_table: str) -> pd.DataFrame:
+def get_diff_columns(cur, output_schema: str, x_table: str) -> pd.DataFrame:
     LOGGER.debug("Getting diff columns")
     # The # of columns has a hard limit (~1600 in Vertica?) so don't worry about
     # pulling the count first or limiting the results
@@ -479,7 +509,7 @@ def get_diff_columns(cur: Cursor, output_schema: str, x_table: str) -> pd.DataFr
 
 def get_column_diffs(
     diff_columns: pd.DataFrame,
-    cur: Cursor,
+    cur,
     output_schema: str,
     x_schema: str,
     x_table: str,
@@ -512,7 +542,7 @@ def get_column_diffs(
             diff_schema=output_schema,
             diff_table=(x_table + "_DIFF"),
             group_cols=", ".join(join_cols),
-            join_cols=" AND ".join(["diff.{0} <=> joined.{0}".format(col) for col in join_cols]),
+            join_cols=" AND ".join([_null_safe_eq("diff", col, "joined") for col in join_cols]),
         )
         info["q"] = q
         q_raw = JINJA_ENV.get_template("diff_column_raw.sql").render(
@@ -523,7 +553,7 @@ def get_column_diffs(
             diff_table=(x_table + "_DIFF"),
             join_cols=join_cols,
             join_cols_join=" AND ".join(
-                ["diff.{0} <=> joined.{0}".format(col) for col in join_cols]
+                [_null_safe_eq("diff", col, "joined") for col in join_cols]
             ),
         )
         info["q_raw"] = q_raw
@@ -561,7 +591,7 @@ def get_column_diffs(
                 diff_table=(x_table + "_DIFF"),
                 group_cols=", ".join(join_cols),
                 join_cols=" AND ".join(
-                    ["diff.{0} <=> joined.{0}".format(col) for col in join_cols]
+                    [_null_safe_eq("diff", col, "joined") for col in join_cols]
                 ),
                 tiles=min({max({1, info["count"]}), 10}),
             )
@@ -577,7 +607,7 @@ def get_column_diffs(
                 diff_table=(x_table + "_DIFF"),
                 join_cols=join_cols,
                 join_cols_join=" AND ".join(
-                    ["diff.{0} <=> joined.{0}".format(col) for col in join_cols]
+                    [_null_safe_eq("diff", col, "joined") for col in join_cols]
                 ),
             )
             cur.execute(info["q_n_sample"] + " LIMIT " + str(max_rows_column))
@@ -586,7 +616,7 @@ def get_column_diffs(
 
 
 def get_column_diffs_from_joined(
-    cur: Cursor,
+    cur,
     output_schema: str,
     x_schema: str,
     x_table: str,

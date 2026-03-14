@@ -1,5 +1,6 @@
+{% if not use_temp_table and dialect != "vertica" %}CREATE TABLE {{ schema_name }}.{{ table_name_dup }} AS {% endif -%}
     SELECT x.*, y.dup_count
-{% if not use_temp_table %}INTO {{ schema_name }}.{{ table_name_dup }}{% endif %}
+{% if not use_temp_table and dialect == "vertica" %}INTO {{ schema_name }}.{{ table_name_dup }}{% endif %}
       FROM {{ schema_name }}.{{ table_name }} x
 INNER JOIN (
     SELECT {{ group_cols }},

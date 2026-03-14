@@ -7,7 +7,6 @@ from typing import Any
 import click
 import pandas as pd
 from jinja2 import Environment, PackageLoader
-from vertica_python.vertica.cursor import Cursor
 
 from dbdiff import __version__
 from dbdiff.main import (
@@ -27,7 +26,6 @@ from dbdiff.main import (
     set_dialect,
 )
 from dbdiff.report import excel_report, html_report
-from dbdiff.vertica import get_cur
 
 JINJA_ENV = Environment(loader=PackageLoader("dbdiff", "templates"))
 DEFAULT_LOGGING_CONFIG = Path(__file__).with_name("logging.json")
@@ -201,7 +199,14 @@ def cli(
     exclude_columns_set = set(map(lambda x: x.lower(), exclude_columns.split(",")))
     initialize_logging(logging_config)
 
-    with get_cur() as cur:
+    if dialect == "duckdb":
+        from dbdiff.duckdb_backend import get_duckdb_cur
+        get_cur_fn = get_duckdb_cur
+    else:
+        from dbdiff.vertica import get_cur
+        get_cur_fn = get_cur
+
+    with get_cur_fn() as cur:
         if x_table_query:
             with open(x_table) as f:
                 q = f.read()
@@ -265,7 +270,7 @@ def cli(
 
 
 def main(
-    cur: Cursor,
+    cur,
     x_schema: str,
     x_table: str,
     y_schema: str,
@@ -357,6 +362,8 @@ def main(
         hierarchical_join_info = {}
 
     # create sub-tables to allow a comparison:
+    # Temp tables with v_temp_schema are Vertica-specific; skip for other dialects
+    use_vertica_temp = dialect == "vertica"
     if x != 0:
         LOGGER.info("X table was not unique on join keys, creating _dedup and _dup versions.")
         schema, x_table = select_distinct_rows(
@@ -364,7 +371,7 @@ def main(
             x_schema,
             x_table,
             join_cols,
-            use_temp_tables=(drop_output_tables or x_schema == "v_temp_schema"),
+            use_temp_tables=(use_vertica_temp and (drop_output_tables or x_schema == "v_temp_schema")),
         )
     if y != 0:
         LOGGER.info("Y table was not unique on join keys, creating _dedup and _dup versions.")
@@ -373,7 +380,7 @@ def main(
             y_schema,
             y_table,
             join_cols,
-            use_temp_tables=(drop_output_tables or y_schema == "v_temp_schema"),
+            use_temp_tables=(use_vertica_temp and (drop_output_tables or y_schema == "v_temp_schema")),
         )
 
     LOGGER.info("Getting rows that did not match (not in joined table) after deduping.")

@@ -46,12 +46,16 @@ Issues = "https://github.com/andyreagan/dbdiff/issues"
 [project.scripts]
 dbdiff = "dbdiff.cli:cli"
 
+[project.optional-dependencies]
+duckdb = ["duckdb"]
+
 [dependency-groups]
 dev = [
     "pytest",
     "pytest-cov",
     "click",
     "sqlglot",
+    "duckdb",
 ]
 
 [tool.hatch.build.targets.wheel]
@@ -70,6 +74,7 @@ addopts = [
 ]
 markers = [
     "integration: requires a running Vertica instance",
+    "duckdb_integration: integration tests using DuckDB (no external server required)",
 ]
 testpaths = ["tests"]
 

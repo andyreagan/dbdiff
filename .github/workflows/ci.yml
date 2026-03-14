@@ -28,7 +28,7 @@ jobs:
         run: uv sync --group dev
 
       - name: Unit tests
-        run: uv run pytest tests/test_unit.py -v
+        run: uv run pytest -v
 
   publish:
     needs: test

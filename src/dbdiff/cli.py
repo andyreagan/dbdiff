@@ -288,8 +288,15 @@ def main(
     A separate function from cli() so that it can be imported easily as well."""
 
     if case_insensitive:
-        LOGGER.info("Case insensitive mode requested but not implemented for non-Vertica dialects.")
-        # Note: SET LOCALE TO is Vertica-specific and not needed
+        if dialect == "vertica":
+            cur.execute("SET LOCALE TO 'en_US@colstrength=1';")
+            cur.fetchall()
+        else:
+            LOGGER.warning(
+                "Case insensitive mode requested but SET LOCALE is Vertica-specific "
+                "and is not supported for dialect '%s'. Proceeding without locale setting.",
+                dialect,
+            )
 
     # Set dialect as a global variable for all templates
     set_dialect(dialect)

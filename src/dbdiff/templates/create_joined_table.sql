@@ -9,5 +9,7 @@ CREATE TABLE {{ joined_schema }}.{{ joined_table }} (
     {% if not loop.last %},{% endif %}
     {% endfor %}
 )
+{% if dialect == "vertica" -%}
 ORDER BY {{ join_cols|join(", ") }}
+{%- endif %}
 ;

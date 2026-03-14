@@ -24,6 +24,7 @@ from dbdiff.main import (
     get_unmatched_rows_straight,
     insert_diff_table,
     select_distinct_rows,
+    set_dialect,
 )
 from dbdiff.report import excel_report, html_report
 from dbdiff.vertica import get_cur
@@ -151,6 +152,12 @@ def get_summary_from_all_info(d: dict) -> dict:
     help="If using this flag, all case sensitivity is turned off.",
 )
 @click.option("--save-json-summary", is_flag=True, help="Save a .json file of the diff summary.")
+@click.option(
+    "--dialect",
+    default="vertica",
+    help="SQL dialect to use for generated SQL (default: vertica).",
+    show_default=True,
+)
 @click.version_option(__version__)
 def cli(
     schema: str,
@@ -174,6 +181,7 @@ def cli(
     logging_config: Path,
     case_insensitive: bool,
     save_json_summary: bool,
+    dialect: str,
 ):
     """Compare two flat files X_TABLE and Y_TABLE, using Vertica as the join engine.
     Assume they are both in the same schema = SCHEMA.
@@ -235,6 +243,7 @@ def cli(
             skip_row_total=skip_row_total,
             use_diff_table=use_diff_table,
             case_insensitive=case_insensitive,
+            dialect=dialect,
         )
 
     if output_format == "HTML":
@@ -273,15 +282,25 @@ def main(
     skip_row_total: bool,
     use_diff_table: bool,
     case_insensitive: bool,
+    dialect: str = "vertica",
 ):
     """Main method to be called by CLI.
     A separate function from cli() so that it can be imported easily as well."""
 
     if case_insensitive:
-        LOGGER.info("Setting to case insensitive.")
-        cur.execute("SET LOCALE TO 'en_US@colstrength=1';")
-        # clear the results
-        cur.fetchall()
+        if dialect == "vertica":
+            cur.execute("SET LOCALE TO 'en_US@colstrength=1';")
+            cur.fetchall()
+        else:
+            LOGGER.warning(
+                "Case insensitive mode requested but SET LOCALE is Vertica-specific "
+                "and is not supported for dialect '%s'. Proceeding without locale setting.",
+                dialect,
+            )
+
+    # Set dialect as a global variable for all templates
+    set_dialect(dialect)
+    JINJA_ENV.globals["dialect"] = dialect
 
     all_col_info_df = get_all_col_info(
         cur,

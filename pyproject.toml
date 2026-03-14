@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "dbdiff"
-version = "0.7.1"
+version = "0.7.2"
 description = "Compare two tables on Vertica."
 readme = "README.md"
 license = { text = "MIT" }
@@ -51,6 +51,7 @@ dev = [
     "pytest",
     "pytest-cov",
     "click",
+    "sqlglot",
 ]
 
 [tool.hatch.build.targets.wheel]

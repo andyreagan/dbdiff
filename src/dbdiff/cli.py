@@ -155,7 +155,8 @@ def get_summary_from_all_info(d: dict) -> dict:
 @click.option(
     "--dialect",
     default="vertica",
-    help="SQL dialect to use for generated SQL (default: vertica).",
+    type=click.Choice(["vertica", "postgres", "duckdb", "sqlite"], case_sensitive=False),
+    help="SQL dialect to use for generated SQL.",
     show_default=True,
 )
 @click.version_option(__version__)
@@ -357,14 +358,18 @@ def main(
         hierarchical_join_info = {}
 
     # create sub-tables to allow a comparison:
+    # Temp tables with v_temp_schema are Vertica-specific; skip for other dialects
+    use_vertica_temp = dialect == "vertica"
     if x != 0:
         LOGGER.info("X table was not unique on join keys, creating _dedup and _dup versions.")
-        schema, x_table = select_distinct_rows(
+        x_schema, x_table = select_distinct_rows(
             cur,
             x_schema,
             x_table,
             join_cols,
-            use_temp_tables=(drop_output_tables or x_schema == "v_temp_schema"),
+            use_temp_tables=(
+                use_vertica_temp and (drop_output_tables or x_schema == "v_temp_schema")
+            ),
         )
     if y != 0:
         LOGGER.info("Y table was not unique on join keys, creating _dedup and _dup versions.")
@@ -373,7 +378,9 @@ def main(
             y_schema,
             y_table,
             join_cols,
-            use_temp_tables=(drop_output_tables or y_schema == "v_temp_schema"),
+            use_temp_tables=(
+                use_vertica_temp and (drop_output_tables or y_schema == "v_temp_schema")
+            ),
         )
 
     LOGGER.info("Getting rows that did not match (not in joined table) after deduping.")

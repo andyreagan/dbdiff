@@ -87,7 +87,31 @@ forced_separate = ["test_dbdiff"]
 not_skip = ["__init__.py"]
 skip = ["migrations"]
 
-[tool.flake8]
-max-line-length = 140
-ignore = ["E501", "W504"]
-exclude = ["*/migrations/*"]
+[tool.coverage.paths]
+source = ["src", "*/site-packages"]
+
+[tool.coverage.run]
+branch = true
+source = ["dbdiff"]
+parallel = true
+disable_warnings = ["no-data-collected"]
+
+[tool.coverage.report]
+show_missing = true
+precision = 2
+omit = ["*migrations*"]
+
+[tool.mypy]
+namespace_packages = true
+explicit_package_bases = true
+
+[[tool.mypy.overrides]]
+module = [
+    "pandas.*",
+    "vertica_python.*",
+    "dotenv.*",
+    "click.*",
+    "jinja2.*",
+    "requests.*",
+]
+ignore_missing_imports = true

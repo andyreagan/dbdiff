@@ -1,7 +1,7 @@
 Overview
 ========
 
-[![Unit Tests](https://github.com/andyreagan/dbdiff/actions/workflows/unit-test.yml/badge.svg)](https://github.com/andyreagan/dbdiff/actions/workflows/unit-test.yml)
+[![Unit Tests](https://github.com/andyreagan/dbdiff/actions/workflows/ci.yml/badge.svg)](https://github.com/andyreagan/dbdiff/actions/workflows/ci.yml)
 [![PyPI version](https://badge.fury.io/py/dbdiff.svg)](https://badge.fury.io/py/dbdiff)
 
 Compare two database tables that are expected to be exactly the same.

@@ -11,29 +11,33 @@ import pandas as pd
 import pytest
 from click.testing import CliRunner
 
-from dbdiff.main import check_primary_key
-from dbdiff.main import create_diff_table
-from dbdiff.main import create_joined_table
-from dbdiff.main import get_column_diffs
-from dbdiff.main import get_diff_columns
-from dbdiff.main import get_diff_rows
-from dbdiff.main import get_unmatched_rows
-from dbdiff.main import get_unmatched_rows_straight
-from dbdiff.main import insert_diff_table
-from dbdiff.main import select_distinct_rows
 from dbdiff.cli import cli
-from dbdiff.vertica import get_column_info
-from dbdiff.vertica import get_column_info_lookup
-from dbdiff.vertica import get_cur
-from dbdiff.vertica import get_table_exists
+from dbdiff.main import (
+    check_primary_key,
+    create_diff_table,
+    create_joined_table,
+    get_column_diffs,
+    get_diff_columns,
+    get_diff_rows,
+    get_unmatched_rows,
+    get_unmatched_rows_straight,
+    insert_diff_table,
+    select_distinct_rows,
+)
+from dbdiff.vertica import (
+    get_column_info,
+    get_column_info_lookup,
+    get_cur,
+    get_table_exists,
+)
 
 pytestmark = pytest.mark.integration
 
 logging.basicConfig(format="%(asctime)s - %(message)s", level=logging.INFO)
 VALID_COL = {"comparable": True, "exclude": False}
-INT_DTYPES = {d: "int" for d in {"x_dtype", "y_dtype"}}
-VARCHAR_DTYPES = {d: "varchar(10)" for d in {"x_dtype", "y_dtype"}}
-DATE_DTYPES = {d: "date" for d in {"x_dtype", "y_dtype"}}
+INT_DTYPES = {d: "int" for d in ("x_dtype", "y_dtype")}
+VARCHAR_DTYPES = {d: "varchar(10)" for d in ("x_dtype", "y_dtype")}
+DATE_DTYPES = {d: "date" for d in ("x_dtype", "y_dtype")}
 COMPARE_COLS = pd.DataFrame(
     {
         "data1": {**INT_DTYPES, **VALID_COL},
@@ -175,7 +179,7 @@ def test_check_primary_key(cur):
 def test_select_distinct_rows(cur):
     x_table_rows = 8
     x_table_columns = 9
-    for use_temp_tables in {True, False}:
+    for use_temp_tables in (True, False):
         new_table_schema, new_table_name = select_distinct_rows(cur, "dbdiff", "x_table", ["join1"])
         # check that new table gets create with N rows
         assert get_table_exists(cur, new_table_schema, "x_table_dup")
@@ -260,7 +264,7 @@ def test_get_unmatched_rows(cur):
             assert "sample" in results[col][side]
             assert "query" in results[col][side]
             assert results[col][side]["count"] == expected_info["count"]
-            for i in {0, 1}:
+            for i in (0, 1):
                 assert results[col][side]["sample"].shape[i] == expected_info["sample_shape"][i]
             if col == "join2":
                 assert "sample_grouped" in results[col][side]
@@ -364,13 +368,13 @@ def test_get_column_diffs(cur):
         },
     }
 
-    for column_name in expected.keys():
+    for column_name in expected:
         grouped_column_diffs[column_name]
         logging.info(grouped_column_diffs[column_name])
         assert expected[column_name]["count"] == grouped_column_diffs[column_name]["count"]
-        for q_name in {"q", "q_raw", "q_h_x", "q_h_y"}:
+        for q_name in ("q", "q_raw", "q_h_x", "q_h_y"):
             assert q_name in grouped_column_diffs[column_name]
-        for i in {0, 1}:
+        for i in (0, 1):
             assert (
                 expected[column_name]["df_shape"][i]
                 == grouped_column_diffs[column_name]["df"].shape[i]

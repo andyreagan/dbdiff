@@ -328,9 +328,7 @@ def main(
     for col in join_cols:
         if all_col_info_df.loc[comparable_filter & (all_col_info_df.index == col), :].shape[0] == 0:
             raise RuntimeError(
-                "Column `{}` not in comparable columns (missing from one, both, or bad dtype). Here is the info we do have about that col:\n".format(
-                    col
-                )
+                f"Column `{col}` not in comparable columns (missing from one, both, or bad dtype). Here is the info we do have about that col:\n"
                 + all_col_info_df.loc[col, :].to_string()
             )
 

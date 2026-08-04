@@ -7,7 +7,9 @@ import pandas as pd
 from jinja2 import Environment, PackageLoader
 
 from dbdiff.vertica import get_column_info_lookup as vertica_get_column_info_lookup
-from dbdiff.vertica import implicit_dtype_comparison as vertica_implicit_dtype_comparison
+from dbdiff.vertica import (
+    implicit_dtype_comparison as vertica_implicit_dtype_comparison,
+)
 
 # Current dialect, set by set_dialect()
 _current_dialect = "vertica"
@@ -15,7 +17,9 @@ _current_dialect = "vertica"
 
 def _get_column_info_lookup(cur, schema_name, table_name):
     if _current_dialect == "duckdb":
-        from dbdiff.duckdb_backend import get_column_info_lookup as duckdb_get_column_info_lookup
+        from dbdiff.duckdb_backend import (
+            get_column_info_lookup as duckdb_get_column_info_lookup,
+        )
 
         return duckdb_get_column_info_lookup(cur, schema_name, table_name)
     return vertica_get_column_info_lookup(cur, schema_name, table_name)
@@ -155,9 +159,7 @@ def select_distinct_rows(
     if _current_dialect == "vertica":
         join_expr = " AND ".join([_null_safe_eq("x", col, "y") for col in join_cols])
     else:
-        join_expr = " AND ".join(
-            ["x.{0} IS NOT DISTINCT FROM y.{0}".format(col) for col in join_cols]
-        )
+        join_expr = " AND ".join([f"x.{col} IS NOT DISTINCT FROM y.{col}" for col in join_cols])
     q = JINJA_ENV.get_template("create_dedup.sql").render(
         schema_name=schema,
         table_name=table,
@@ -262,7 +264,7 @@ def get_unmatched_rows_straight(
         "y": {"count": 0, "query": "select ...", "sample": pd.DataFrame()},
     }
 
-    for side in {"x", "y"}:
+    for side in ("x", "y"):
         d = {
             "x_schema": x_schema,
             "y_schema": y_schema,
@@ -315,7 +317,7 @@ def get_unmatched_rows(
     LOGGER.info(
         "Getting rows that did not match on only the first join column: " + join_cols[0] + "."
     )
-    for side in {"x", "y"}:
+    for side in ("x", "y"):
         d = {
             "x_schema": x_schema,
             "y_schema": y_schema,
@@ -347,7 +349,7 @@ def get_unmatched_rows(
             + " where all but the last already exist."
         )
 
-        for side in {"x", "y"}:
+        for side in ("x", "y"):
             d = {
                 "x_schema": x_schema,
                 "y_schema": y_schema,

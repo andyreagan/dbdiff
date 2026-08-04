@@ -34,9 +34,9 @@ pytestmark = pytest.mark.duckdb_integration
 logging.basicConfig(format="%(asctime)s - %(message)s", level=logging.INFO)
 
 VALID_COL = {"comparable": True, "exclude": False}
-INT_DTYPES = {d: "INTEGER" for d in {"x_dtype", "y_dtype"}}
-VARCHAR_DTYPES = {d: "VARCHAR" for d in {"x_dtype", "y_dtype"}}
-DATE_DTYPES = {d: "DATE" for d in {"x_dtype", "y_dtype"}}
+INT_DTYPES = {d: "INTEGER" for d in ("x_dtype", "y_dtype")}
+VARCHAR_DTYPES = {d: "VARCHAR" for d in ("x_dtype", "y_dtype")}
+DATE_DTYPES = {d: "DATE" for d in ("x_dtype", "y_dtype")}
 COMPARE_COLS = pd.DataFrame(
     {
         "data1": {**INT_DTYPES, **VALID_COL},
@@ -212,7 +212,7 @@ def test_get_unmatched_rows(cur):
     for col, expected in expected_results.items():
         for side, expected_info in expected.items():
             assert results[col][side]["count"] == expected_info["count"]
-            for i in {0, 1}:
+            for i in (0, 1):
                 assert results[col][side]["sample"].shape[i] == expected_info["sample_shape"][i]
 
 
@@ -243,7 +243,7 @@ def test_get_column_diffs_from_joined(cur):
     )
     # data1 has 1 diff, data2 has 2 diffs, data3 has 2 diffs
     assert len(grouped_column_diffs) > 0
-    for col_name, info in grouped_column_diffs.items():
+    for info in grouped_column_diffs.values():
         assert "count" in info
         assert info["count"] > 0
         assert "df" in info

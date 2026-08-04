@@ -240,23 +240,23 @@ def _make_report_kwargs():
     column_match_info["exclude"] = column_match_info["exclude"].astype(bool)
     column_match_info["uncomparable"] = column_match_info["uncomparable"].astype(bool)
 
-    return dict(
-        x_schema="s",
-        y_schema="s",
-        x_table="x_tbl",
-        y_table="y_tbl",
-        join_cols=["join1"],
-        diff_summary={"count": 0, "total_count": 0, "sample": pd.DataFrame()},
-        total_row_count=100,
-        column_info={},
-        column_match_info=column_match_info,
-        missing_join_info={
+    return {
+        "x_schema": "s",
+        "y_schema": "s",
+        "x_table": "x_tbl",
+        "y_table": "y_tbl",
+        "join_cols": ["join1"],
+        "diff_summary": {"count": 0, "total_count": 0, "sample": pd.DataFrame()},
+        "total_row_count": 100,
+        "column_info": {},
+        "column_match_info": column_match_info,
+        "missing_join_info": {
             "x": {"count": 0, "sample": pd.DataFrame()},
             "y": {"count": 0, "sample": pd.DataFrame()},
         },
-        hierarchical_join_info={},
-        dedup_info={"x_tbl": {"count": 0}, "y_tbl": {"count": 0}},
-    )
+        "hierarchical_join_info": {},
+        "dedup_info": {"x_tbl": {"count": 0}, "y_tbl": {"count": 0}},
+    }
 
 
 class TestHtmlReport:

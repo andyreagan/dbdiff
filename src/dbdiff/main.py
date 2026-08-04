@@ -383,7 +383,7 @@ def create_diff_table(
         table=table,
         columns=", ".join(
             all_col_info_df.loc[all_col_info_df.index.isin(join_cols)]
-            .apply(lambda x: " ".join([x.name, x.x_dtype]), axis=1)
+            .apply(lambda x: f"{x.name} {x.x_dtype}", axis=1)
             .values
         ),
     )

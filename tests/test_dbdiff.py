@@ -34,6 +34,7 @@ from dbdiff.vertica import (
 pytestmark = pytest.mark.integration
 
 logging.basicConfig(format="%(asctime)s - %(message)s", level=logging.INFO)
+logger = logging.getLogger(__name__)
 VALID_COL = {"comparable": True, "exclude": False}
 INT_DTYPES = {d: "int" for d in ("x_dtype", "y_dtype")}
 VARCHAR_DTYPES = {d: "varchar(10)" for d in ("x_dtype", "y_dtype")}
@@ -256,11 +257,11 @@ def test_get_unmatched_rows(cur):
         for i, j in enumerate(join_cols)
     }
     for col, expected in expected_results.items():
-        logging.info(col)
+        logger.info(col)
         for side, expected_info in expected.items():
-            logging.info(side)
-            logging.info(results[col][side]["count"])
-            logging.info(results[col][side]["sample"])
+            logger.info(side)
+            logger.info(results[col][side]["count"])
+            logger.info(results[col][side]["sample"])
             assert "sample" in results[col][side]
             assert "query" in results[col][side]
             assert results[col][side]["count"] == expected_info["count"]
@@ -280,9 +281,9 @@ def test_create_diff_table(cur):
 
 def test_insert_diff_table(cur):
     cur.execute("select * from dbdiff.x_table_JOINED")
-    logging.info(cur.fetchall())
+    logger.info(cur.fetchall())
     cur.execute("select * from dbdiff.x_table_DIFF")
-    logging.info(cur.fetchall())
+    logger.info(cur.fetchall())
     insert_diff_table(
         cur,
         joined_schema="dbdiff",
@@ -346,7 +347,7 @@ def test_get_column_diffs(cur):
         COMPARE_COLS,
         True,
     )
-    logging.info(grouped_column_diffs)
+    logger.info(grouped_column_diffs)
 
     data1_misses = 1
     data2_misses = 2
@@ -370,7 +371,7 @@ def test_get_column_diffs(cur):
 
     for column_name in expected:
         grouped_column_diffs[column_name]
-        logging.info(grouped_column_diffs[column_name])
+        logger.info(grouped_column_diffs[column_name])
         assert expected[column_name]["count"] == grouped_column_diffs[column_name]["count"]
         for q_name in ("q", "q_raw", "q_h_x", "q_h_y"):
             assert q_name in grouped_column_diffs[column_name]

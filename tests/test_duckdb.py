@@ -243,7 +243,7 @@ def test_get_column_diffs_from_joined(cur):
     )
     # data1 has 1 diff, data2 has 2 diffs, data3 has 2 diffs
     assert len(grouped_column_diffs) > 0
-    for col_name, info in grouped_column_diffs.items():
+    for info in grouped_column_diffs.values():
         assert "count" in info
         assert info["count"] > 0
         assert "df" in info

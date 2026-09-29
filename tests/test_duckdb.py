@@ -34,9 +34,9 @@ pytestmark = pytest.mark.duckdb_integration
 logging.basicConfig(format="%(asctime)s - %(message)s", level=logging.INFO)
 
 VALID_COL = {"comparable": True, "exclude": False}
-INT_DTYPES = {d: "INTEGER" for d in {"x_dtype", "y_dtype"}}
-VARCHAR_DTYPES = {d: "VARCHAR" for d in {"x_dtype", "y_dtype"}}
-DATE_DTYPES = {d: "DATE" for d in {"x_dtype", "y_dtype"}}
+INT_DTYPES = {d: "INTEGER" for d in ("x_dtype", "y_dtype")}
+VARCHAR_DTYPES = {d: "VARCHAR" for d in ("x_dtype", "y_dtype")}
+DATE_DTYPES = {d: "DATE" for d in ("x_dtype", "y_dtype")}
 COMPARE_COLS = pd.DataFrame(
     {
         "data1": {**INT_DTYPES, **VALID_COL},
@@ -212,7 +212,7 @@ def test_get_unmatched_rows(cur):
     for col, expected in expected_results.items():
         for side, expected_info in expected.items():
             assert results[col][side]["count"] == expected_info["count"]
-            for i in {0, 1}:
+            for i in (0, 1):
                 assert results[col][side]["sample"].shape[i] == expected_info["sample_shape"][i]
 
 

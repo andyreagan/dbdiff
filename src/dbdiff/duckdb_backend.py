@@ -127,9 +127,7 @@ def implicit_dtype_comparison(x_dtype: str, y_dtype: str) -> bool:
         return "FLOAT" in target or "NUMERIC" in target or "DECIMAL" in target
     elif "CHAR" in source or "VARCHAR" in source or "TEXT" in source:
         return "CHAR" in target or "VARCHAR" in target or "TEXT" in target or "FLOAT" in target
-    elif "DATE" in source and "DATE" in target:
-        return True
-    elif "TIMESTAMP" in source and "TIMESTAMP" in target:
+    elif "DATE" in source and "DATE" in target or "TIMESTAMP" in source and "TIMESTAMP" in target:
         return True
     else:
         return source == target

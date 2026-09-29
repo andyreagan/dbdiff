@@ -118,9 +118,8 @@ def get_cur() -> Cursor:
             context = ssl.create_default_context()
             conninfo["ssl"] = context
 
-    with vertica_python.connect(**conninfo) as conn:
-        with conn.cursor("dict") as cur:
-            try:
-                yield cur
-            finally:
-                conn.close()
+    with vertica_python.connect(**conninfo) as conn, conn.cursor("dict") as cur:
+        try:
+            yield cur
+        finally:
+            conn.close()

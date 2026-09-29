@@ -86,18 +86,18 @@ def get_cur() -> Cursor:
     """
     load_dotenv(find_dotenv(".config.sh"))
 
-    conninfo = dict(
-        host=os.environ.get("VERTICA_HOST", "").strip(),
-        port=int(os.environ.get("VERTICA_PORT", "").strip()),
-        database=os.environ.get("VERTICA_DATABASE", "").strip(),
-        user=os.environ.get("VERTICA_USERNAME", "").strip(),
-        password=os.environ.get("VERTICA_PASSWORD", "").strip(),
-        connection_timeout=int(os.environ.get("VERTICA_CONNECTION_TIMEOUT", "36000").strip()),
+    conninfo = {
+        "host": os.environ.get("VERTICA_HOST", "").strip(),
+        "port": int(os.environ.get("VERTICA_PORT", "").strip()),
+        "database": os.environ.get("VERTICA_DATABASE", "").strip(),
+        "user": os.environ.get("VERTICA_USERNAME", "").strip(),
+        "password": os.environ.get("VERTICA_PASSWORD", "").strip(),
+        "connection_timeout": int(os.environ.get("VERTICA_CONNECTION_TIMEOUT", "36000").strip()),
         # read_timeout=int(os.environ.get(
         #     'VERTICA_READ_TIMEOUT', '36000').strip()),
         # this is in the docs, but not used!
-        unicode_error=os.environ.get("VERTICA_UNICODE_ERROR", "strict").strip(),
-    )
+        "unicode_error": os.environ.get("VERTICA_UNICODE_ERROR", "strict").strip(),
+    }
     # let this one use the vertica-python default:
     # connection_load_balance=True
     LOGGER.debug(conninfo)
@@ -118,9 +118,8 @@ def get_cur() -> Cursor:
             context = ssl.create_default_context()
             conninfo["ssl"] = context
 
-    with vertica_python.connect(**conninfo) as conn:
-        with conn.cursor("dict") as cur:
-            try:
-                yield cur
-            finally:
-                conn.close()
+    with vertica_python.connect(**conninfo) as conn, conn.cursor("dict") as cur:
+        try:
+            yield cur
+        finally:
+            conn.close()

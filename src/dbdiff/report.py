@@ -7,7 +7,7 @@ JINJA_ENV = Environment(loader=PackageLoader("dbdiff", "templates"))
 
 def get_max_diferences(column_info: pd.DataFrame) -> int:
     if len(list(column_info.values())) > 0:
-        return list(column_info.values())[0]["count"]
+        return next(iter(column_info.values()))["count"]
     else:
         return 0
 
@@ -41,7 +41,9 @@ def html_report(
     def code(value, codeclass="plaintext"):
         return f'<code class="{codeclass}">{value}</code>'
 
-    def dfhtml(df, classes=["table", "table-bordered", "table-striped", "table-hover", "table-sm"]):
+    def dfhtml(df, classes=None):
+        if classes is None:
+            classes = ["table", "table-bordered", "table-striped", "table-hover", "table-sm"]
         return df.to_html(index=False, classes=classes)
 
     JINJA_ENV.filters["comma"] = comma
@@ -106,9 +108,7 @@ def excel_report(
     all_sheets = []
     summary_sheet_data = [
         {
-            "Summary": 'Diff report between tables {x_table} (herein, "x") and {y_table} (herein, "y").'.format(
-                x_table=x_table, y_table=y_table
-            )
+            "Summary": f'Diff report between tables {x_table} (herein, "x") and {y_table} (herein, "y").'
         }
     ]
     summary_sheet_data.append({"Summary": "----"})
@@ -134,20 +134,14 @@ def excel_report(
         }
     )
     summary_sheet_data.append(
-        {
-            "Summary": "There are {column_info} columns that have differences.".format(
-                column_info=len(column_info)
-            )
-        }
+        {"Summary": f"There are {len(column_info)} columns that have differences."}
     )
 
     max_differences = get_max_diferences(column_info)
 
     summary_sheet_data.append(
         {
-            "Summary": "The maximum number of differences on any individual column is {max_differences}.".format(
-                max_differences=max_differences
-            )
+            "Summary": f"The maximum number of differences on any individual column is {max_differences}."
         }
     )
     all_sheets.append(("Summary", pd.DataFrame(summary_sheet_data)))

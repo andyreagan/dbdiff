@@ -7,7 +7,7 @@ JINJA_ENV = Environment(loader=PackageLoader("dbdiff", "templates"))
 
 def get_max_diferences(column_info: pd.DataFrame) -> int:
     if len(list(column_info.values())) > 0:
-        return list(column_info.values())[0]["count"]
+        return next(iter(column_info.values()))["count"]
     else:
         return 0
 
@@ -41,7 +41,9 @@ def html_report(
     def code(value, codeclass="plaintext"):
         return f'<code class="{codeclass}">{value}</code>'
 
-    def dfhtml(df, classes=["table", "table-bordered", "table-striped", "table-hover", "table-sm"]):
+    def dfhtml(df, classes=None):
+        if classes is None:
+            classes = ["table", "table-bordered", "table-striped", "table-hover", "table-sm"]
         return df.to_html(index=False, classes=classes)
 
     JINJA_ENV.filters["comma"] = comma

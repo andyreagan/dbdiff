@@ -198,8 +198,8 @@ def cli(
         y_schema = schema
     if output_schema is None:
         output_schema = schema
-    join_cols_list = list(map(lambda x: x.lower(), join_cols.split(",")))
-    exclude_columns_set = set(map(lambda x: x.lower(), exclude_columns.split(",")))
+    join_cols_list = [x.lower() for x in join_cols.split(",")]
+    exclude_columns_set = {x.lower() for x in exclude_columns.split(",")}
     initialize_logging(logging_config)
 
     with get_cur() as cur:
